@@ -45,7 +45,7 @@ def main():
         images.shape[1:],
         preprocess_fn=preprocess)
 
-    weights_path = os.path.join(args.log,'weights.best.h5')
+    weights_path = os.path.join(args.log,'best.weights.h5')
     training_model.load_weights(weights_path)
 
     print('----- getting predictions from trained model -----')

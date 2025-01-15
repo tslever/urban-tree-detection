@@ -72,7 +72,7 @@ def main():
 
     callbacks = []
 
-    weights_path = os.path.join(args.log, 'weights.best.h5')
+    weights_path = os.path.join(args.log, 'best.weights.h5')
     callbacks.append(ModelCheckpoint(
             filepath=weights_path,
             monitor='val_loss',
@@ -80,7 +80,7 @@ def main():
             save_best_only=True,
             save_weights_only=True,
             ))
-    weights_path = os.path.join(args.log, 'weights.latest.h5')
+    weights_path = os.path.join(args.log, 'latest.weights.h5')
     callbacks.append(ModelCheckpoint(
             filepath=weights_path,
             monitor='val_loss',

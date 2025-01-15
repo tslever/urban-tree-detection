@@ -83,7 +83,7 @@ class SFANet(Model):
 def build_model(input_shape,preprocess_fn=None,bce_loss_weight=0.1,half_res=False):
     image = layers.Input(input_shape)
     
-    image_preprocessed = preprocess_fn(image)
+    image_preprocessed = layers.Lambda(lambda x: preprocess_fn(x))(image)
 
     sfanet = SFANet(half_res=half_res)
     dmp, amp = sfanet(image_preprocessed)

@@ -42,7 +42,7 @@ def main():
         threshold_abs = None
         threshold_rel = 0.2
     
-    weights_path = os.path.join(args.log,'weights.best.h5')
+    weights_path = os.path.join(args.log,'best.weights.h5')
     padded_size = args.tile_size + args.overlap*2
     preprocess = eval(f'preprocess_{args.bands}')
     training_model, model = SFANet.build_model((padded_size,padded_size,len(args.bands)),preprocess_fn=preprocess)
