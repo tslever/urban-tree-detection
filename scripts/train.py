@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.utils import Sequence
 
 import glob
 import numpy as np
@@ -14,24 +15,32 @@ import sys
 
 import h5py as h5
 
-def generator(f,batch_size):
-    train_images = f['train/images']
-    train_confidence = f['train/confidence']
-    train_attention = f['train/attention']
+class DataGenerator(Sequence):
+    def __init__(self, f, batch_size, shuffle=True, **kwargs):
+        super().__init__(**kwargs)
+        self.f = f
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.train_images = f['train/images']
+        self.train_confidence = f['train/confidence']
+        self.train_attention = f['train/attention']
+        self.indices = np.arange(len(self.train_images))
+        self.on_epoch_end()
     
-    inds = np.arange(len(train_images))
-    np.random.shuffle(inds)
-    idx = 0
-    while True:
-        batch_inds = inds[idx:idx+batch_size]
-        batch_images = np.stack([train_images[i] for i in batch_inds])
-        batch_confidence = np.stack([train_confidence[i] for i in batch_inds])
-        batch_attention = np.stack([train_attention[i] for i in batch_inds])
-        yield batch_images, (batch_confidence, batch_attention)
-        idx += batch_size
-        if idx >= len(inds):
-            np.random.shuffle(inds)
-            idx = 0
+    def __len__(self):
+        return int(np.ceil(len(self.train_images) / self.batch_size))
+    
+    def __getitem__(self, index):
+        batch_indices = self.indices[index * self.batch_size:(index + 1) * self.batch_size]
+        batch_images = np.stack([self.train_images[i] for i in batch_indices])
+        batch_confidence = np.stack([self.train_confidence[i] for i in batch_indices])
+        batch_attention = np.stack([self.train_attention[i] for i in batch_indices])
+        return batch_images, (batch_confidence, batch_attention)
+    
+    def on_epoch_end(self):
+        if self.shuffle:
+            np.random.shuffle(self.indices)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -92,18 +101,16 @@ def main():
     os.system("rm -rf " + tensorboard_path)
     callbacks.append(tf.keras.callbacks.TensorBoard(tensorboard_path))
 
-    gen = generator(f,args.batch_size)
+    gen = DataGenerator(f,args.batch_size,shuffle=True,use_multiprocessing=True,workers=4)
     y_val = (val_confidence, val_attention)
 
     model.fit(
             gen,
             validation_data=(val_images,y_val),
-            batch_size=args.batch_size,
             epochs=args.epochs,
-            steps_per_epoch=len(f['train/images'])//args.batch_size+1,
             verbose=True,
-            callbacks=callbacks,
-            use_multiprocessing=True)
+            callbacks=callbacks
+    )
 
 if __name__ == '__main__':
     main()
