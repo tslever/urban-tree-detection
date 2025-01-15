@@ -45,7 +45,7 @@ To train the model, run the `train.py` script.
 
 For example,
 
-   python3 -m scripts.train output.hdf5 logs 
+    python3 -m scripts.train output.hdf5 logs 
 
 ### Hyperparameter tuning ###
 
