@@ -4,12 +4,12 @@ This repository provides code for training and evaluating a convolutional neural
 
 ### Installation ###
 
-The model is implemented with Python 3.11.4 and Tensorflow 2.18.0.  We have provided an `environment.yml` file so that you can easily create a conda environment with the dependencies installed:
+The model is implemented with Python 3.11.4 and TensorFlow 2.18.0.  We have provided an `environment.yml` file for earlier versions of Python and TensorFlow so that you can easily create a conda environment with the dependencies installed:
 
     conda env create 
     conda activate urban-tree-detection
 
-Alternately, you may run
+For Python 3.11.4 and TensorFlow 2.18.0, you may run
 
     python -m venv env
     source env/bin/activate
@@ -24,6 +24,7 @@ Alternately, you may run
     pip install scikit-image
     pip install scikit-learn
     pip install optuna
+    pip install matplotlib
 
 ### Dataset ###
 
