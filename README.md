@@ -4,10 +4,26 @@ This repository provides code for training and evaluating a convolutional neural
 
 ### Installation ###
 
-The model is implemented with Tensorflow 2.4.1.  We have provided an `environment.yml` file so that you can easily create a conda environment with the dependencies installed:
+The model is implemented with Python 3.11.4 and Tensorflow 2.18.0.  We have provided an `environment.yml` file so that you can easily create a conda environment with the dependencies installed:
 
     conda env create 
     conda activate urban-tree-detection
+
+Alternately, you may run
+
+    python -m venv env
+    source env/bin/activate
+    pip install tensorflow[and-cuda]==2.18.0
+    pip install numpy
+    pip install imageio
+    pip install rasterio
+    pip install geopandas
+    pip install h5py
+    pip install scipy
+    pip install tqdm
+    pip install scikit-image
+    pip install scikit-learn
+    pip install optuna
 
 ### Dataset ###
 
@@ -17,11 +33,19 @@ To prepare a dataset for training and testing, run the `prepare.py` script.  You
 
     python3 -m scripts.prepare <path to dataset> <path to hdf5 file> --bands <RGB or RGBN>
 
+For example,
+
+    python3 -m scripts.prepare ../urban-tree-detection-data output.hdf5
+
 ### Training ###
 
 To train the model, run the `train.py` script.
 
     python3 -m scripts.train <path to hdf5 file> <path to log directory>
+
+For example,
+
+   python3 -m scripts.train output.hdf5 logs 
 
 ### Hyperparameter tuning ###
 
