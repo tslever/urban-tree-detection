@@ -68,6 +68,10 @@ To detect trees in rasters and produce GeoJSONs containing the geo-referenced tr
                                  <path to log directory> \
                                  --bands <RGB or RGBN>
 
+For example,
+
+    python3 -m scripts.inference ../urban-tree-detection-data/images/bishop_2020_0.tif output.json logs
+
 ### Pre-trained weights ###
 
 The following pre-trained models are available:
