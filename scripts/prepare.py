@@ -36,38 +36,44 @@ def load_data(dataset_path,names,sigma):
             image_path = os.path.join(dataset_path,'images',name + suffix)
             if os.path.exists(image_path):
                 image = imageio.imread(image_path)
+                if image.ndim == 3 and image.shape[0] in [3, 4]:
+                    image = image.transpose(1, 2, 0)
                 if suffix == '.png' or args.bands == 'RGB':
-                    image = image[...,:3]
+                    image = image[..., :3]
                 break
         if image is None:
             raise RuntimeError(f'could not find image for {name}')
         
-        csv_path = os.path.join(dataset_path,'csv',name + '.csv')
+        csv_path = os.path.join(dataset_path, 'csv', name + '.csv')
         if os.path.exists(csv_path):
-            points = np.loadtxt(csv_path,delimiter=',',skiprows=1).astype('int')
-            if len(points.shape)==1:
-                points = points[None,:]
-            
-            gt = np.zeros(image.shape[:2],dtype='float32')
-            gt[points[:,1],points[:,0]] = 1
+            points = np.loadtxt(csv_path, delimiter = ',', skiprows = 1).astype('int')
+            if points.size == 0:
+                print(f"Warning: No points found in {csv_path}. Using an empty ground truth.")
+                gt = np.zeros(image.shape[:2], dtype = "float32")
+            else:
+                points = points.astype("int")
+                if points.ndim == 1:
+                    points = points[None, :]
+                gt = np.zeros(image.shape[:2], dtype = 'float32')
+                gt[points[:, 1], points[:, 0]] = 1
         
-            distance = distance_transform_edt(1-gt).astype('float32')
-            confidence = np.exp(-distance**2/(2*sigma**2))
+            distance = distance_transform_edt(1 - gt).astype('float32')
+            confidence = np.exp(-distance**2 / (2 * sigma**2))
         else:
-            gt = np.zeros(image.shape[:2],dtype='float32')
-            confidence = np.zeros(image.shape[:2],dtype='float32')
+            gt = np.zeros(image.shape[:2], dtype = 'float32')
+            confidence = np.zeros(image.shape[:2], dtype = 'float32')
             
-        confidence = confidence[...,None]
+        confidence = confidence[..., None]
 
-        attention = confidence>0.001
+        attention = confidence > 0.001
         attention = attention.astype('float32')
 
         data.append({
-            'name':name,
-            'image':image,
-            'gt':gt,
-            'confidence':confidence,
-            'attention':attention
+            'name': name,
+            'image': image,
+            'gt': gt,
+            'confidence': confidence,
+            'attention': attention
         })
         
         pbar.update(1)
