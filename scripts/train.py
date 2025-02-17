@@ -63,41 +63,53 @@ def main():
 
     f = h5.File(args.data,'r')
     bands = f.attrs['bands']
-    val_images = f['val/images'][:]
-    val_confidence = f['val/confidence'][:]
-    val_attention = f['val/attention'][:]
+
+    if 'val/images' in f:
+        val_images = f['val/images'][:]
+        val_confidence = f['val/confidence'][:]
+        val_attention = f['val/attention'][:]
+    else:
+        print("Warning: Validation data not found in HDF5 file. Using training data as validation.")
+        val_images = f['train/images'][:]
+        val_confidence = f['train/confidence'][:]
+        val_attention = f['train/attention'][:]
     
     preprocess_fn = eval(f'preprocess_{bands}')
     
     model, testing_model = SFANet.build_model(
         val_images.shape[1:],
-        preprocess_fn=preprocess_fn)
+        preprocess_fn=preprocess_fn
+    )
     opt = Adam(args.lr)
     model.compile(optimizer=opt, loss=['mse','binary_crossentropy'], loss_weights=[1,0.1])
 
     print(model.summary())
     
-    os.makedirs(args.log,exist_ok=True)
+    os.makedirs(args.log, exist_ok=True)
 
     callbacks = []
 
     weights_path = os.path.join(args.log, 'best.weights.h5')
-    callbacks.append(ModelCheckpoint(
+    callbacks.append(
+        ModelCheckpoint(
             filepath=weights_path,
             monitor='val_loss',
             verbose=True,
             save_best_only=True,
             save_weights_only=True,
-            ))
+        )
+    )
     weights_path = os.path.join(args.log, 'latest.weights.h5')
-    callbacks.append(ModelCheckpoint(
+    callbacks.append(
+        ModelCheckpoint(
             filepath=weights_path,
             monitor='val_loss',
             verbose=True,
             save_best_only=False,
             save_weights_only=True,
-            ))
-    tensorboard_path = os.path.join(args.log,'tensorboard')
+        )
+    )
+    tensorboard_path = os.path.join(args.log, 'tensorboard')
     os.system("rm -rf " + tensorboard_path)
     callbacks.append(tf.keras.callbacks.TensorBoard(tensorboard_path))
 
@@ -106,7 +118,7 @@ def main():
 
     model.fit(
             gen,
-            validation_data=(val_images,y_val),
+            validation_data=(val_images, y_val),
             epochs=args.epochs,
             verbose=True,
             callbacks=callbacks
