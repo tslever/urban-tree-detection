@@ -15,8 +15,54 @@ import sys
 
 import h5py as h5
 
+import matplotlib.pyplot as plt
+
+
+class LossHistoryCSV(tf.keras.callbacks.Callback):
+    def __init__(self, csv_path):
+        super().__init__()
+        self.csv_path = csv_path
+        with open(self.csv_path, 'w', newline = "") as f:
+            f.write("epoch,train_loss,val_loss\n")
+    
+    def on_epoch_end(self, epoch, logs = None):
+        logs = logs or {}
+        train_loss = logs.get("loss")
+        val_loss = logs.get("val_loss")
+        with open(self.csv_path, 'a', newline = "") as f:
+            f.write(f"{epoch+1},{train_loss},{val_loss}\n")
+        print(f"Epoch {epoch+1} loss was logged to {self.csv_path}")
+
+        
+class LossCurvePlotter(tf.keras.callbacks.Callback):
+
+    def __init__(self, png_path):
+        super().__init__()
+        self.png_path = png_path
+        self.train_losses = []
+        self.val_losses = []
+
+    def on_epoch_end(self, epoch, logs = None):
+        logs = logs or {}
+        train_loss = logs.get("loss")
+        val_loss = logs.get("val_loss")
+        self.train_losses.append(train_loss)
+        self.val_losses.append(val_loss)
+        plt.figure()
+        epochs = range(1, len(self.train_losses) + 1)
+        plt.plot(epochs, self.train_losses, label = "Training Loss")
+        plt.plot(epochs, self.val_losses, label = "Validation Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.title("Training and Validation Loss Curves")
+        plt.savefig(self.png_path)
+        plt.close()
+        print(f"Epoch {epoch+1} loss curves updated to {self.png_path}")
+
 class DataGenerator(Sequence):
-    def __init__(self, f, batch_size, shuffle=True, **kwargs):
+
+    def __init__(self, f, batch_size, shuffle = True, **kwargs):
         super().__init__(**kwargs)
         self.f = f
         self.batch_size = batch_size
@@ -89,40 +135,47 @@ def main():
 
     callbacks = []
 
-    weights_path = os.path.join(args.log, 'best.weights.h5')
+    best_weights_path = os.path.join(args.log, 'best.weights.h5')
     callbacks.append(
         ModelCheckpoint(
-            filepath=weights_path,
-            monitor='val_loss',
-            verbose=True,
-            save_best_only=True,
-            save_weights_only=True,
+            filepath = best_weights_path,
+            monitor = 'val_loss',
+            verbose = True,
+            save_best_only = True,
+            save_weights_only = True,
         )
     )
-    weights_path = os.path.join(args.log, 'latest.weights.h5')
+    latest_weights_path = os.path.join(args.log, 'latest.weights.h5')
     callbacks.append(
         ModelCheckpoint(
-            filepath=weights_path,
-            monitor='val_loss',
-            verbose=True,
-            save_best_only=False,
-            save_weights_only=True,
+            filepath = latest_weights_path,
+            monitor = 'val_loss',
+            verbose = True,
+            save_best_only = False,
+            save_weights_only = True,
         )
     )
     tensorboard_path = os.path.join(args.log, 'tensorboard')
     os.system("rm -rf " + tensorboard_path)
     callbacks.append(tf.keras.callbacks.TensorBoard(tensorboard_path))
 
-    gen = DataGenerator(f,args.batch_size,shuffle=True,use_multiprocessing=True,workers=4)
+    csv_file = os.path.join(args.log, "loss_history.csv")
+    callbacks.append(LossHistoryCSV(csv_file))
+    
+    loss_curves_path = os.path.join(args.log, "loss_curves.png")
+    callbacks.append(LossCurvePlotter(loss_curves_path))
+    
+    gen = DataGenerator(f, args.batch_size, shuffle = True, use_multiprocessing = True, workers = 4)
     y_val = (val_confidence, val_attention)
 
     model.fit(
-            gen,
-            validation_data=(val_images, y_val),
-            epochs=args.epochs,
-            verbose=True,
-            callbacks=callbacks
+        gen,
+        validation_data = (val_images, y_val),
+        epochs = args.epochs,
+        verbose = True,
+        callbacks = callbacks
     )
+    
 
 if __name__ == '__main__':
     main()

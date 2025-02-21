@@ -4,3 +4,4 @@ aggregated_contents.txt
 env
 logs
 output.hdf5
+output.json
