@@ -50,11 +50,13 @@ class EarlyStopping(tf.keras.callbacks.Callback):
 
 
 class LossHistoryCSV(tf.keras.callbacks.Callback):
-    def __init__(self, csv_path):
+
+    def __init__(self, csv_path, resume = False):
         super().__init__()
         self.csv_path = csv_path
-        with open(self.csv_path, 'w', newline = "") as f:
-            f.write("epoch,train_loss,val_loss\n")
+        if not resume or os.path.exists(self.csv_path):
+            with open(self.csv_path, 'w', newline = "") as f:
+                f.write("epoch,train_loss,val_loss\n")
     
     def on_epoch_end(self, epoch, logs = None):
         logs = logs or {}
@@ -192,7 +194,7 @@ def main():
     callbacks.append(tf.keras.callbacks.TensorBoard(tensorboard_path))
 
     csv_file = os.path.join(args.log, "loss_history.csv")
-    callbacks.append(LossHistoryCSV(csv_file))
+    callbacks.append(LossHistoryCSV(csv_file, resume = args.resume))
     
     loss_curves_path = os.path.join(args.log, "loss_curves.png")
     callbacks.append(LossCurvePlotter(loss_curves_path))
@@ -213,6 +215,7 @@ def main():
                 raise Exception("Loss history CSV file does not exist. Please restart training from scratch.")
             with open(csv_file, 'r') as f_csv:
                 lines = f_csv.readlines()
+                print(lines)
                 if len(lines) <= 1:
                     raise Exception("Loss history CSV file does not contain epoch information. Please restart training from scratch.")
                 last_line = lines[-1]
