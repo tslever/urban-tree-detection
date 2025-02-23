@@ -18,6 +18,37 @@ import h5py as h5
 import matplotlib.pyplot as plt
 
 
+class EarlyStopping(tf.keras.callbacks.Callback):
+    
+    def __init__(self, file_path, monitor = 'val_loss', patience = 20, mode = 'min'):
+        super().__init__()
+        self.file_path = file_path
+        self.monitor = monitor
+        self.patience = patience
+        self.mode = mode
+        self.best = float('inf') if mode == 'min' else -float('inf')
+        self.wait = 0
+        self.stopped_epoch = 0
+        with open(self.file_path, 'w') as f:
+            f.write("Early stopping has not occurred.\n")
+
+    def on_epoch_end(self, epoch, logs = None):
+        logs = logs or {}
+        current = logs.get(self.monitor)
+        if current is None:
+            return
+        if (self.mode == 'min' and current < self.best) or (self.mode == 'max' and current > self.best):
+            self.best = current
+            self.wait = 0
+        else:
+            self.wait += 1
+            if self.wait >= self.patience:
+                self.stopped_epoch = epoch
+                self.model.stop_training = True
+                with open(self.file_path, 'w') as f:
+                    f.write(f"Early stopping triggered at epoch {epoch+1}.\n")
+
+
 class LossHistoryCSV(tf.keras.callbacks.Callback):
     def __init__(self, csv_path):
         super().__init__()
@@ -95,8 +126,9 @@ def main():
     parser.add_argument('log', help='path to log directory')
 
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--epochs', type=int, default=500, help='num epochs')
+    parser.add_argument('--epochs', type=int, default = 1_000_000, help='num epochs')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
+    parser.add_argument('--resume', action='store_true', help='Resume training from latest checkpoint if early stopping has not occurred')
 
     args = parser.parse_args()
 
@@ -104,10 +136,10 @@ def main():
     for device in physical_devices:
         try:
             tf.config.experimental.set_memory_growth(device, True)
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
-    f = h5.File(args.data,'r')
+    f = h5.File(args.data, 'r')
     bands = f.attrs['bands']
 
     if 'val/images' in f:
@@ -127,11 +159,11 @@ def main():
         preprocess_fn=preprocess_fn
     )
     opt = Adam(args.lr)
-    model.compile(optimizer=opt, loss=['mse','binary_crossentropy'], loss_weights=[1,0.1])
+    model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.1])
 
     print(model.summary())
     
-    os.makedirs(args.log, exist_ok=True)
+    os.makedirs(args.log, exist_ok = True)
 
     callbacks = []
 
@@ -152,7 +184,7 @@ def main():
             monitor = 'val_loss',
             verbose = True,
             save_best_only = False,
-            save_weights_only = True,
+            save_weights_only = True
         )
     )
     tensorboard_path = os.path.join(args.log, 'tensorboard')
@@ -165,6 +197,35 @@ def main():
     loss_curves_path = os.path.join(args.log, "loss_curves.png")
     callbacks.append(LossCurvePlotter(loss_curves_path))
     
+    early_stopping_log_path = os.path.join(args.log, 'early_stopping_log_path.txt')
+    early_stopping_callback = EarlyStopping(early_stopping_log_path, monitor = 'val_loss', patience = 20, mode = 'min')
+    callbacks.append(early_stopping_callback)
+
+    initial_epoch = 0
+    if args.resume:
+        if os.path.exists(latest_weights_path):
+            if os.path.exists(early_stopping_log_path):
+                with open(early_stopping_log_path, 'r') as f_log:
+                    content = f_log.read()
+                if "Early stopping triggered" in content:
+                    raise Exception("Early stopping has occurred previously. Please restart training from scratch.")
+            if not os.path.exists(csv_file):
+                raise Exception("Loss history CSV file does not exist. Please restart training from scratch.")
+            with open(csv_file, 'r') as f_csv:
+                lines = f_csv.readlines()
+                if len(lines) <= 1:
+                    raise Exception("Loss history CSV file does not contain epoch information. Please restart training from scratch.")
+                last_line = lines[-1]
+                try:
+                    initial_epoch = int(last_line.split(',')[0])
+                except Exception:
+                    raise Exception("Could not parse the last epoch from CSV. Please restart training from scratch.")
+            print("Resuming training from latest checkpoint.")
+            model.load_weights(latest_weights_path)
+            print(f"Resuming from epoch {initial_epoch}.")
+        else:
+            raise Exception("No latest checkpoint found. Please restart training from scratch.")
+
     gen = DataGenerator(f, args.batch_size, shuffle = True, use_multiprocessing = True, workers = 4)
     y_val = (val_confidence, val_attention)
 
@@ -172,6 +233,7 @@ def main():
         gen,
         validation_data = (val_images, y_val),
         epochs = args.epochs,
+        initial_epoch = initial_epoch,
         verbose = True,
         callbacks = callbacks
     )
