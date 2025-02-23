@@ -54,7 +54,7 @@ class LossHistoryCSV(tf.keras.callbacks.Callback):
     def __init__(self, csv_path, resume = False):
         super().__init__()
         self.csv_path = csv_path
-        if not resume or os.path.exists(self.csv_path):
+        if not resume or not os.path.exists(self.csv_path):
             with open(self.csv_path, 'w', newline = "") as f:
                 f.write("epoch,train_loss,val_loss\n")
     
