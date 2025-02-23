@@ -15,13 +15,14 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-def save_visualizations(images, results, output_dir):
+def save_visualizations(images, results, names, output_dir):
     '''
     Save one visualization per test image with the test image and overlaid annotations.
 
     Parameters:
         images: np.ndarray -- Test images array of shape [N, H, W, C]
         results: dict -- Dictionary from function evaluate containing keys `gt_locs`, `tp_locs`, `tp_gt_locs`, `fp_locs`, and `fn_locs`
+        names: list -- List of names corresponding to each test image
         output_dir: str -- Path to the directory where visualizations will be saved
     '''
     os.makedirs(output_dir, exist_ok = True)
@@ -60,8 +61,9 @@ def save_visualizations(images, results, output_dir):
             for (x1, y1), (x2, y2) in zip(true_positives, true_positives_and_ground_truths):
                 ax.plot([x1, x2], [y1, y2], 'y-')
 
+        ax.legend(framealpha = 0.8)
         ax.axis('off')
-        save_path = os.path.join(output_dir, f'image_{i:04d}.png')
+        save_path = os.path.join(output_dir, f'{names[i]}.png')
         fig.savefig(save_path, bbox_inches = 'tight', pad_inches = 0)
         plt.close(fig)
 
@@ -93,6 +95,12 @@ def main():
     images = f[f'test/images'][:]
     gts = f[f'test/gt'][:]
 
+    if 'names' in f['test']:
+        raw_names = f['test/names'][:]
+        names = [n.decode('utf-8') if isinstance(n, bytes) else str(n) for n in raw_names]
+    else:
+        names = [f'image_{i:04d}' for i in range(images.shape[0])]
+
     bands = f.attrs['bands']
     
     preprocess = eval(f'preprocess_{bands}')
@@ -115,7 +123,8 @@ def main():
         threshold_rel=threshold_rel,
         threshold_abs=threshold_abs,
         max_distance=args.max_distance,
-        return_locs=True)
+        return_locs=True
+    )
 
     with open(os.path.join(args.log,'results.txt'),'w') as f:
         f.write('precision: '+str(results['precision'])+'\n')
@@ -130,7 +139,7 @@ def main():
     print('rmse [px]: ',results['rmse'])
     
     vis_dir = os.path.join(args.log, 'visualizations')
-    save_visualizations(images, results, vis_dir)
+    save_visualizations(images, results, names, vis_dir)
     print('Visualizations saved to directory:', vis_dir)
 
 
