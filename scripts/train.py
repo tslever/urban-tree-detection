@@ -199,7 +199,7 @@ def main():
     loss_curves_path = os.path.join(args.log, "loss_curves.png")
     callbacks.append(LossCurvePlotter(loss_curves_path))
     
-    early_stopping_log_path = os.path.join(args.log, 'early_stopping_log_path.txt')
+    early_stopping_log_path = os.path.join(args.log, 'early_stopping_log.txt')
     early_stopping_callback = EarlyStopping(early_stopping_log_path, monitor = 'val_loss', patience = 20, mode = 'min')
     callbacks.append(early_stopping_callback)
 
