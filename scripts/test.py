@@ -15,9 +15,10 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 
-def save_visualizations(images, results, names, output_dir, rearrange_channels = False):
+def save_visualizations(images, results, names, output_dir, rearrange_channels = False, dpi = 100):
     '''
     Save one visualization per test image with the test image and overlaid annotations.
+    Ensure that the saved visualization has the same resolution as the input image.
 
     Parameters:
         images: np.ndarray -- Test images array of shape [N, H, W, C]
@@ -25,53 +26,58 @@ def save_visualizations(images, results, names, output_dir, rearrange_channels =
         names: list -- List of names corresponding to each test image
         output_dir: str -- Path to the directory where visualizations will be saved
         rearrange_channels: bool -- If True, rearrange channels (for example, use channel order [3, 0, 1] if available)
+        dpi: int -- DPI to use for the figure (affects figure size in inches)
     '''
     os.makedirs(output_dir, exist_ok = True)
     num_images = images.shape[0]
     for i in range(0, num_images):
-        fig, ax = plt.subplots(figsize = (8, 8))
         img = images[i]
         if rearrange_channels:
             if img.shape[-1] >= 4:
                 img = img[..., [3, 0, 1]]
             else:
                 img = img[..., :3]
+        height, width = img.shape[:2]
+        figsize = (width / dpi, height / dpi)
+        fig = plt.figure(figsize = figsize, dpi = dpi)
+        ax = fig.add_axes([0, 0, 1, 1])
         ax.imshow(img)
+
         ground_truth_points = results['gt_locs'][i]
         if ground_truth_points.size > 0:
-            if len(ground_truth_points.shape) == 1:
+            if ground_truth_points.ndim == 1:
                 ground_truth_points = ground_truth_points[None, :]
             ax.plot(ground_truth_points[:, 0], ground_truth_points[:, 1], 'm.', label = 'Ground Truth')
 
         true_positives = results['tp_locs'][i]
         if true_positives.size > 0:
-            if len(true_positives.shape) == 1:
+            if true_positives.ndim == 1:
                 true_positives = true_positives[None, :]
             ax.plot(true_positives[:, 0], true_positives[:, 1], 'g+', label = 'True Positives')
 
         false_positives = results['fp_locs'][i]
         if false_positives.size > 0:
-            if len(false_positives.shape) == 1:
+            if false_positives.ndim == 1:
                 false_positives = false_positives[None, :]
-            ax.plot(false_positives[:,0], false_positives[:,1], 'y^', label = 'False Positives')
+            ax.plot(false_positives[:, 0], false_positives[:, 1], 'y^', label = 'False Positives')
 
         false_negatives = results['fn_locs'][i]
         if false_negatives.size > 0:
-            if len(false_negatives.shape) == 1:
+            if false_negatives.ndim == 1:
                 false_negatives = false_negatives[None, :]
             ax.plot(false_negatives[:, 0], false_negatives[:, 1], 'm.', markeredgecolor = 'k', markeredgewidth = 1, label = 'False Negatives')
 
         true_positives_and_ground_truths = results['tp_gt_locs'][i]
         if true_positives.size > 0 and true_positives_and_ground_truths.size > 0:
-            if len(true_positives_and_ground_truths.shape) == 1:
+            if true_positives_and_ground_truths.ndim == 1:
                 true_positives_and_ground_truths = true_positives_and_ground_truths[None, :]
             for (x1, y1), (x2, y2) in zip(true_positives, true_positives_and_ground_truths):
                 ax.plot([x1, x2], [y1, y2], 'y-')
 
-        ax.legend(framealpha = 0.8)
+        #ax.legend(framealpha = 0.8)
         ax.axis('off')
         save_path = os.path.join(output_dir, f'{names[i]}.png')
-        fig.savefig(save_path, bbox_inches = 'tight', pad_inches = 0)
+        fig.savefig(save_path, dpi = dpi, pad_inches = 0)
         plt.close(fig)
 
 
