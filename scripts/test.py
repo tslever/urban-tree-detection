@@ -88,6 +88,7 @@ def main():
     parser.add_argument('log', help = 'path to log directory')
     parser.add_argument('--max_distance', type = float, default = 10, help = 'max distance from ground truth to pred tree (in pixels)')
     parser.add_argument('--rearrange_channels', action = 'store_true', help = 'Rearrange image channels for visualization if provided')
+    parser.add_argument('--center_crop', action = 'store_true', help = 'Evaluate only on the center 166 x 166 pixels of each test image.')
 
     args = parser.parse_args()
 
@@ -128,6 +129,17 @@ def main():
 
     print('----- getting predictions from trained model -----')
     preds = model.predict(images, verbose = True, batch_size = 1)[..., 0]
+
+    if args.center_crop:
+        crop_size = 166
+        def center_crop(arr):
+            H, W = arr.shape[0], arr.shape[1]
+            start_H = (H - crop_size) // 2
+            start_W = (W - crop_size) // 2
+            return arr[start_H:start_H+crop_size, start_W:start_W+crop_size, ...]
+        images = np.array([center_crop(img) for img in images])
+        gts = np.array([center_crop(gt) for gt in gts])
+        preds = np.array([center_crop(pred) for pred in preds])
 
     print('----- calculating metrics -----')
     results = evaluate(
