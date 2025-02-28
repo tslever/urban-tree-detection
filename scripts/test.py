@@ -13,6 +13,24 @@ import imageio
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
+import re
+import rasterio
+
+
+def get_source_image_path(tile_path):
+    '''
+    Given a testing tile path, return the corresponding source image image.
+    For example, if tile_path is:
+        ../urban-tree-detection-data/images/testing_image_0_CT_1_bl_reproj_m_4107348_ne_18_060_20180810_0.tif
+    then the source image path is:
+        ../urban-tree-detection-data/stacked_testing_images/testing_image_0_CT_1_bl_reproj_m_4107348_ne_18_060_20180810.tif
+    '''
+    dirname, basename = os.path.split(tile_path)
+    base_no_ext, ext = os.path.splitext(basename)
+    source_base = re.sub(r'_\d+$', '', base_no_ext) + ext
+    source_dir = dirname.replace('images', 'stacked_testing_images')
+    source_path = os.path.join(source_dir, source_base)
+    return source_path
 
 
 def save_visualizations(images, results, names, output_dir, rearrange_channels = False, dpi = 100):
@@ -29,7 +47,7 @@ def save_visualizations(images, results, names, output_dir, rearrange_channels =
         dpi: int -- DPI to use for the figure (affects figure size in inches)
     '''
     os.makedirs(output_dir, exist_ok = True)
-    num_images = images.shape[0]
+    num_images = len(images)
     for i in range(0, num_images):
         img = images[i]
         if rearrange_channels:
@@ -115,6 +133,16 @@ def main():
         names = [n.decode('utf-8') if isinstance(n, bytes) else str(n) for n in raw_names]
     else:
         names = [f'image_{i:04d}' for i in range(images.shape[0])]
+    
+    for i, name in enumerate(names):
+        tile_path = os.path.join("../urban-tree-detection-data/images", f"{name}.tif")
+        source_path = get_source_image_path(tile_path)
+        try:
+            src_img = rasterio.open(source_path)
+            first_channel = src_img.read(1)
+            print(first_channel.shape)
+        except Exception as e:
+            raise Exception(f"Could not load source image for {name} from {source_path}: {e}")
 
     bands = f.attrs['bands']
     
