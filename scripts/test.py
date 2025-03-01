@@ -15,6 +15,7 @@ mpl.use('Agg')
 import matplotlib.pyplot as plt
 import re
 import rasterio
+import json
 
 
 def get_source_image_path(tile_path):
@@ -160,14 +161,26 @@ def main():
 
     if args.center_crop:
         crop_size = 166
-        def center_crop(arr):
-            H, W = arr.shape[0], arr.shape[1]
-            start_H = (H - crop_size) // 2
-            start_W = (W - crop_size) // 2
+        def center_crop(arr, metadata_path):
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+            sub_height = metadata['sub_height']
+            sub_width = metadata['sub_width']
+            start_H = (sub_height - crop_size) // 2
+            start_W = (sub_width - crop_size) // 2
             return arr[start_H:start_H+crop_size, start_W:start_W+crop_size, ...]
-        images = np.array([center_crop(img) for img in images])
-        gts = np.array([center_crop(gt) for gt in gts])
-        preds = np.array([center_crop(pred) for pred in preds])
+        
+        cropped_images = []
+        cropped_gts = []
+        cropped_preds = []
+        for i, (img, gt, pred) in enumerate(zip(images, gts, preds)):
+            metadata_path = os.path.join("../urban-tree-detection-data/images_based_on_chopped_testing_images", f"{names[i]}.json")
+            cropped_images.append(center_crop(img, metadata_path))
+            cropped_gts.append(center_crop(gt, metadata_path))
+            cropped_preds.append(center_crop(pred, metadata_path))
+        images = np.array(cropped_images)
+        gts = np.array(cropped_gts)
+        preds = np.array(cropped_preds)
 
     print('----- calculating metrics -----')
     results = evaluate(
