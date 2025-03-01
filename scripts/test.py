@@ -134,7 +134,8 @@ def main():
         names = [n.decode('utf-8') if isinstance(n, bytes) else str(n) for n in raw_names]
     else:
         names = [f'image_{i:04d}' for i in range(images.shape[0])]
-    
+
+    '''
     for i, name in enumerate(names):
         tile_path = os.path.join("../urban-tree-detection-data/images", f"{name}.tif")
         source_path = get_source_image_path(tile_path)
@@ -144,6 +145,7 @@ def main():
             print(first_channel.shape)
         except Exception as e:
             raise Exception(f"Could not load source image for {name} from {source_path}: {e}")
+    '''
 
     bands = f.attrs['bands']
     
