@@ -1,5 +1,6 @@
-__pycache__
+*.hdf5
 .ipynb_checkpoints
+__pycache__
 aggregated_contents.txt
 env
 logs
