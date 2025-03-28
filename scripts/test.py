@@ -17,15 +17,7 @@ import re
 import rasterio
 import json
 
-
 def get_source_image_path(tile_path):
-    '''
-    Given a testing tile path, return the corresponding source image image.
-    For example, if tile_path is:
-        ../urban-tree-detection-data/images/testing_image_0_CT_1_bl_reproj_m_4107348_ne_18_060_20180810_0.tif
-    then the source image path is:
-        ../urban-tree-detection-data/stacked_testing_images/testing_image_0_CT_1_bl_reproj_m_4107348_ne_18_060_20180810.tif
-    '''
     dirname, basename = os.path.split(tile_path)
     base_no_ext, ext = os.path.splitext(basename)
     source_base = re.sub(r'_\d+$', '', base_no_ext) + ext
@@ -33,20 +25,7 @@ def get_source_image_path(tile_path):
     source_path = os.path.join(source_dir, source_base)
     return source_path
 
-
 def save_visualizations(images, results, names, output_dir, rearrange_channels = False, dpi = 100):
-    '''
-    Save one visualization per test image with the test image and overlaid annotations.
-    Ensure that the saved visualization has the same resolution as the input image.
-
-    Parameters:
-        images: np.ndarray -- Test images array of shape [N, H, W, C]
-        results: dict -- Dictionary from function evaluate containing keys `gt_locs`, `tp_locs`, `tp_gt_locs`, `fp_locs`, and `fn_locs`
-        names: list -- List of names corresponding to each test image
-        output_dir: str -- Path to the directory where visualizations will be saved
-        rearrange_channels: bool -- If True, rearrange channels (for example, use channel order [3, 0, 1] if available)
-        dpi: int -- DPI to use for the figure (affects figure size in inches)
-    '''
     os.makedirs(output_dir, exist_ok = True)
     num_images = len(images)
     for i in range(0, num_images):
@@ -93,12 +72,10 @@ def save_visualizations(images, results, names, output_dir, rearrange_channels =
             for (x1, y1), (x2, y2) in zip(true_positives, true_positives_and_ground_truths):
                 ax.plot([x1, x2], [y1, y2], 'y-')
 
-        #ax.legend(framealpha = 0.8)
         ax.axis('off')
         save_path = os.path.join(output_dir, f'{names[i]}.png')
         fig.savefig(save_path, dpi = dpi, pad_inches = 0)
         plt.close(fig)
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -108,11 +85,20 @@ def main():
     parser.add_argument('--max_distance', type = float, default = 10, help = 'max distance from ground truth to pred tree (in pixels)')
     parser.add_argument('--rearrange_channels', action = 'store_true', help = 'Rearrange image channels for visualization if provided')
     parser.add_argument('--center_crop', action = 'store_true', help = 'Evaluate only on the center 166 x 166 pixels of each test image.')
+    parser.add_argument('--min_distance', type = int, default = 1, help = 'minimum distance between detected peaks')
+    parser.add_argument('--threshold_abs', type=float, help='Absolute threshold for peak detection')
+    parser.add_argument('--threshold_rel', type=float, help='Relative threshold for peak detection')
+    parser.add_argument('--mode', choices=['rel', 'abs'], help='Thresholding mode')
 
     args = parser.parse_args()
 
     params_path = os.path.join(args.log, 'params.yaml')
-    if os.path.exists(params_path):
+    if args.min_distance is not None:
+        min_distance = args.min_distance
+        threshold_abs = args.threshold_abs
+        threshold_rel = args.threshold_rel
+        mode = args.mode
+    elif os.path.exists(params_path):
         with open(params_path, 'r') as f:
             params = yaml.safe_load(f)
             mode = params['mode']
@@ -124,7 +110,7 @@ def main():
         min_distance = 1
         threshold_abs = None
         threshold_rel = 0.2
-    
+
     f = h5.File(args.data, 'r')
     images = f[f'test/images'][:]
     gts = f[f'test/gt'][:]
@@ -135,20 +121,7 @@ def main():
     else:
         names = [f'image_{i:04d}' for i in range(images.shape[0])]
 
-    '''
-    for i, name in enumerate(names):
-        tile_path = os.path.join("../urban-tree-detection-data/images", f"{name}.tif")
-        source_path = get_source_image_path(tile_path)
-        try:
-            src_img = rasterio.open(source_path)
-            first_channel = src_img.read(1)
-            print(first_channel.shape)
-        except Exception as e:
-            raise Exception(f"Could not load source image for {name} from {source_path}: {e}")
-    '''
-
     bands = f.attrs['bands']
-    
     preprocess = eval(f'preprocess_{bands}')
     training_model, model = SFANet.build_model(
         images.shape[1:],
@@ -171,7 +144,7 @@ def main():
             start_H = (sub_height - crop_size) // 2
             start_W = (sub_width - crop_size) // 2
             return arr[start_H:start_H+crop_size, start_W:start_W+crop_size, ...]
-        
+
         cropped_images = []
         cropped_gts = []
         cropped_preds = []
@@ -206,11 +179,10 @@ def main():
     print('recall: ', results['recall'])
     print('fscore: ', results['fscore'])
     print('rmse [px]: ', results['rmse'])
-    
+
     vis_dir = os.path.join(args.log, 'visualizations')
     save_visualizations(images, results, names, vis_dir, rearrange_channels = args.rearrange_channels)
     print('Visualizations saved to directory:', vis_dir)
-
 
 if __name__ == '__main__':
     main()
