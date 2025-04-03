@@ -144,12 +144,15 @@ def evaluate(gts, preds, min_distance, threshold_rel, threshold_abs, max_distanc
         pred_indices = peak_local_max(pred, min_distance=min_distance, threshold_abs=threshold_abs, threshold_rel=threshold_rel)
         if pred_indices.size != 0:
             if pred_indices.ndim == 1:
+                # If a single point is returned, expand to (1, 2)
                 pred_indices = np.expand_dims(pred_indices, axis=0)
+            if pred_indices.shape[-1] == 1:
+                # If the output is (N, 1), it means it's returning only row indices, fix this to make it (N, 2)
+                pred_indices = np.hstack([pred_indices, np.zeros((pred_indices.shape[0], 1), dtype=int)])
             if pred_indices.shape[1] != 2:
-                if pred_indices.shape[1] == 1:
-                    pred_indices = np.hstack([pred_indices, np.zeros((pred_indices.shape[0], 1), dtype=int)])
-                else:
-                    raise ValueError("Unexpected shape for pred_indices: " + str(pred_indices.shape))
+                raise ValueError(f"Unexpected shape for pred_indices: {pred_indices.shape}. It should be (num_peaks, 2).")
+
+
         
         if len(gt_indices) == 0 or len(pred_indices) == 0:
             dists = np.ones((len(gt_indices), len(pred_indices)), dtype='float32') * np.inf

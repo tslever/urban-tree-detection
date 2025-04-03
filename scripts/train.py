@@ -6,7 +6,7 @@ from tensorflow.keras.utils import Sequence
 import glob
 import numpy as np
 
-from models import SFANet
+from models import SFANetRes
 from utils.preprocess import *
 
 import argparse
@@ -156,7 +156,7 @@ def main():
     
     preprocess_fn = eval(f'preprocess_{bands}')
     
-    model, testing_model = SFANet.build_model(
+    model, testing_model = SFANetRes.build_model(
         val_images.shape[1:],
         preprocess_fn=preprocess_fn
     )

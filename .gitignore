@@ -6,3 +6,5 @@ env
 logs
 output.hdf5
 output.json
+logs2/
+logs2/
