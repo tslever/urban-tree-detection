@@ -40,15 +40,51 @@ def process_image(dataset_path, name, sigma, bands):
     attention = (confidence > 0.001).astype('float32').squeeze(axis = -1)
     return image, gt, confidence, attention
 
+# def augment_images(images):
+#     '''
+#     Return an augmented stack of 8 versions of the image, including 4 90 degree rotations and the vertical flip of each.
+#     '''
+#     augmented = []
+#     for k in range(0, 4):
+#         rotated = np.rot90(image, k = k)
+#         augmented.append(rotated)
+#         augmented.append(np.flipud(rotated))
+#     return np.stack(augmented)
+
 def augment_images(images):
     '''
-    Return an augmented stack of 8 versions of the image, including 4 90 degree rotations and the vertical flip of each.
+    Return an augmented stack of 8 versions of the image, including:
+    - 4 90-degree rotations
+    - Vertical flip of each
+    - Random crops
+    - Random brightness and contrast adjustments
+    - Small affine transformations (scaling, translation, and rotation)
     '''
     augmented = []
-    for k in range(0, 4):
-        rotated = np.rot90(image, k = k)
-        augmented.append(rotated)
-        augmented.append(np.flipud(rotated))
+    
+    for image in images:
+        for k in range(4):
+            rotated = np.rot90(image, k=k)
+            augmented.append(rotated)
+            augmented.append(np.flipud(rotated))
+
+            h, w = rotated.shape[:2]
+            crop_size = np.random.uniform(0.7, 1.0)
+            new_h, new_w = int(h * crop_size), int(w * crop_size)
+            y_start, x_start = np.random.randint(0, h - new_h + 1), np.random.randint(0, w - new_w + 1)
+            cropped = rotated[y_start:y_start+new_h, x_start:x_start+new_w]
+            cropped = cv2.resize(cropped, (w, h))
+            augmented.append(cropped)
+            
+            alpha = np.random.uniform(0.8, 1.2)
+            beta = np.random.uniform(-30, 30)
+            bright_contrast = np.clip(alpha * rotated + beta, 0, 255).astype(np.uint8)
+            augmented.append(bright_contrast)
+            
+            matrix = cv2.getRotationMatrix2D((w // 2, h // 2), np.random.uniform(-45, 45), np.random.uniform(0.9, 1.2))
+            affine_transformed = cv2.warpAffine(rotated, matrix, (w, h), borderMode=cv2.BORDER_REFLECT)
+            augmented.append(affine_transformed)
+
     return np.stack(augmented)
 
 def process_split(f, dataset_path, split_file, split, sigma, bands, augment = False):
