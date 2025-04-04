@@ -38,9 +38,13 @@ def main():
         training_model.load_weights(weights_path)
 
         print('----- getting predictions from trained model -----')
-        preds = model.predict(images,verbose=True,batch_size=1)[...,0]
+        preds_list = []
+        for i in range(len(images)):
+            pred = model.predict(np.expand_dims(images[i], axis = 0), verbose = False)
+            preds_list.append(pred[0, ..., 0])
+        preds = np.array(preds_list)
         
-        np.save(preds_path,preds)
+        np.save(preds_path, preds)
 
     def objective(trial):
         min_distance = trial.suggest_int('min_distance',1,10)
@@ -58,14 +62,14 @@ def main():
 
     print('----- running hyperparameter tuning -----')
     study = optuna.create_study()
-    study.optimize(objective, n_trials=args.ntrials)
+    study.optimize(objective, n_trials = args.ntrials)
 
     print('----- best params: -----')
     print(study.best_params)
 
-    output_path = os.path.join(args.log,'params.yaml')
-    with open(output_path,'w') as f:
-        yaml.dump(study.best_params,f)
+    output_path = os.path.join(args.log, 'params.yaml')
+    with open(output_path, 'w') as f:
+        yaml.dump(study.best_params, f)
 
 if __name__ == '__main__':
     main()
