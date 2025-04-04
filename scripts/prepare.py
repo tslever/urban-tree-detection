@@ -95,7 +95,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', help = 'path to dataset')
     parser.add_argument('output', help = 'output path for .h5 file')
-    parser.add_argument('--data_mode', choices = ['full', 'small'], default = ['full'], help = 'Data mode: full uses normal csv, images, train.txt, etc.; small uses csv_small, images_small, train_small.txt, etc.')
+    parser.add_argument('--data_mode', choices = ['full', 'small'], default = 'full', help = 'Data mode: full uses normal csv, images, train.txt, etc.; small uses csv_small, images_small, train_small.txt, etc.')
     parser.add_argument('--train', default = None, help = 'train split file name')
     parser.add_argument('--val', default = None, help = 'validation split file name')
     parser.add_argument('--test', default = None, help = 'test split file name')
