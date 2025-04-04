@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 from tensorflow.keras import Model, layers, initializers, losses
 from tensorflow.keras.applications import VGG16
 from tensorflow.keras import backend as K
@@ -10,8 +10,8 @@ class BaseConv(layers.Layer):
         self.use_bn = use_bn
         self.conv = layers.Conv2D(out_channels, kernel, strides=stride, padding='same',
                            kernel_initializer=initializers.RandomNormal(stddev=0.01))
-        self.bn = layers.BatchNormalization()
-        if activation is None:
+        self.bn = layers.BatchNormalization() if use_bn else None
+        if activation is not None:
             self.activation = layers.Activation(activation)
         else:
             self.activation = None
