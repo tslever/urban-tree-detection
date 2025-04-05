@@ -5,6 +5,7 @@ import h5py
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 import tqdm
+import cv2
 
 def process_image(dataset_path, name, sigma, bands, data_mode):
     image = None
@@ -42,16 +43,79 @@ def process_image(dataset_path, name, sigma, bands, data_mode):
     attention = (confidence > 0.001).astype('float32').squeeze(axis = -1)
     return image, gt, confidence, attention
 
-def augment_images(images):
+# def augment_images(images):
+#     '''
+#     Return an augmented stack of 8 versions of the image, including 4 90 degree rotations and the vertical flip of each.
+#     '''
+#     augmented = []
+#     for k in range(0, 4):
+#         rotated = np.rot90(image, k = k)
+#         augmented.append(rotated)
+#         augmented.append(np.flipud(rotated))
+#     return np.stack(augmented)
+
+def augment_images(images, num_augmented=4):
     '''
-    Return an augmented stack of 8 versions of the image, including 4 90 degree rotations and the vertical flip of each.
+    For each input image, generate a wide set of augmentations including:
+    - 4 rotations (0°, 90°, 180°, 270°)
+    - Vertical flips
+    - Random crops
+    - Brightness/contrast adjustment
+    - Affine transforms (rotate/scale/translate)
+
+    From the generated set, randomly select `num_augmented` augmentations per image.
+    
+    Parameters:
+        images (numpy.ndarray): Stack of input images, shape (N, H, W, C)
+        num_augmented (int): Number of augmentations to return per input image
+
+    Returns:
+        numpy.ndarray: Stack of augmented images, shape (N * num_augmented, H, W, C)
     '''
-    augmented = []
-    for k in range(0, 4):
-        rotated = np.rot90(image, k = k)
-        augmented.append(rotated)
-        augmented.append(np.flipud(rotated))
-    return np.stack(augmented)
+    output = []
+
+    for image in images:
+        augmented = []
+
+        for k in range(4):
+            rotated = np.rot90(image, k=k)
+            augmented.append(rotated)
+            augmented.append(np.flipud(rotated))
+
+            # Random crop
+            h, w = rotated.shape[:2]
+            crop_scale = np.random.uniform(0.7, 1.0)
+            new_h, new_w = int(h * crop_scale), int(w * crop_scale)
+            y_start = np.random.randint(0, h - new_h + 1)
+            x_start = np.random.randint(0, w - new_w + 1)
+            cropped = rotated[y_start:y_start+new_h, x_start:x_start+new_w]
+            cropped = cv2.resize(cropped, (w, h))
+            augmented.append(cropped)
+
+            # Brightness/Contrast
+            alpha = np.random.uniform(0.8, 1.2)  # contrast
+            beta = np.random.uniform(-30, 30)    # brightness
+            bright_contrast = np.clip(alpha * rotated + beta, 0, 255).astype(np.uint8)
+            augmented.append(bright_contrast)
+
+            # Affine Transform
+            matrix = cv2.getRotationMatrix2D((w // 2, h // 2),
+                                             np.random.uniform(-45, 45),
+                                             np.random.uniform(0.9, 1.2))
+            affine = cv2.warpAffine(rotated, matrix, (w, h), borderMode=cv2.BORDER_REFLECT)
+            if image.shape[-1] == 1:
+                affine = affine[..., np.newaxis]
+            elif affine.ndim == 2:
+                affine = np.stack([affine]*image.shape[-1], axis=-1)
+            augmented.append(affine)
+
+        # Randomly select `num_augmented` variants from the augmented list
+        np.random.seed(0)
+        selected = np.random.choice(len(augmented), size=num_augmented, replace=False)
+        for idx in selected:
+            output.append(augmented[idx])
+
+    return np.stack(output)
 
 def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, augment = False):
     with open(os.path.join(dataset_path, split_file), 'r') as sf:

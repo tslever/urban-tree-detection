@@ -1,4 +1,5 @@
 *.hdf5
+ModelRun.ipynb
 .ipynb_checkpoints
 __pycache__
 aggregated_contents.txt
