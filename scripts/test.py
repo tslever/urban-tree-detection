@@ -1,5 +1,6 @@
 '''
-Compute metrics on test set and save per-image visualizations.
+Compute metrics on test set and save per-image visualizations and
+a scatter plot of predicted vs. actual dead trees per hectare.
 '''
 import numpy as np
 import argparse
@@ -20,7 +21,7 @@ import json
 
 def get_source_image_path(tile_path):
     '''
-    Given a testing tile path, return the corresponding source image image.
+    Given a testing tile path, return the corresponding source image.
     For example, if tile_path is:
         ../urban-tree-detection-data/images/testing_image_0_CT_1_bl_reproj_m_4107348_ne_18_060_20180810_0.tif
     then the source image path is:
@@ -93,7 +94,6 @@ def save_visualizations(images, results, names, output_dir, rearrange_channels =
             for (x1, y1), (x2, y2) in zip(true_positives, true_positives_and_ground_truths):
                 ax.plot([x1, x2], [y1, y2], 'y-')
 
-        #ax.legend(framealpha = 0.8)
         ax.axis('off')
         save_path = os.path.join(output_dir, f'{names[i]}.png')
         fig.savefig(save_path, dpi = dpi, pad_inches = 0)
@@ -134,18 +134,6 @@ def main():
         names = [n.decode('utf-8') if isinstance(n, bytes) else str(n) for n in raw_names]
     else:
         names = [f'image_{i:04d}' for i in range(images.shape[0])]
-
-    '''
-    for i, name in enumerate(names):
-        tile_path = os.path.join("../urban-tree-detection-data/images", f"{name}.tif")
-        source_path = get_source_image_path(tile_path)
-        try:
-            src_img = rasterio.open(source_path)
-            first_channel = src_img.read(1)
-            print(first_channel.shape)
-        except Exception as e:
-            raise Exception(f"Could not load source image for {name} from {source_path}: {e}")
-    '''
 
     bands = f.attrs['bands']
     
@@ -206,6 +194,55 @@ def main():
     print('recall: ', results['recall'])
     print('fscore: ', results['fscore'])
     print('rmse [px]: ', results['rmse'])
+    
+    '''
+    Compute number of actual dead trees and number of predicted dead trees.
+    Determine numbers of actual and predicted dead trees per hectare.
+    The number of predicted dead trees is the sum of the number of true positives and the number of false positives.
+    '''
+    numbers_of_actual_dead_trees_per_hectare = []
+    numbers_of_predicted_dead_trees_per_hectare = []
+    for gt_locs, tp_locs, fp_locs in zip(results['gt_locs'], results['tp_locs'], results['fp_locs']):
+        number_of_actual_dead_trees = len(gt_locs)
+        number_of_predicted_dead_trees = len(tp_locs) + len(fp_locs)
+        '''
+        Calculate the number of hectares in the testing image as
+        (height in pixels) * (0.6 meters / pixel) * (width in pixels) * (0.6 meters / pixel) * (1 hectare / (10000 square meters)).
+        '''
+        height, width = images[i].shape[:2]
+        area_in_hectares = (height * 0.6 * width * 0.6) / 10000.0
+        numbers_of_actual_dead_trees_per_hectare.append(number_of_actual_dead_trees / area_in_hectares)
+        numbers_of_predicted_dead_trees_per_hectare.append(number_of_predicted_dead_trees / area_in_hectares)
+    
+    plt.figure()
+    plt.scatter(
+        numbers_of_actual_dead_trees_per_hectare,
+        numbers_of_predicted_dead_trees_per_hectare,
+        c = 'blue',
+        edgecolors = 'k',
+        alpha = 0.2
+    )
+    plt.xlabel("number of actual dead trees per hectare")
+    plt.ylabel("number of predicted dead trees per hectare")
+    plt.title(
+        "Number of Predicted Dead Trees Per Hectare\n" +
+        "vs. Number of Actual Dead Trees Per Hectare"
+    )
+    all_numbers_of_dead_trees_per_hectare = numbers_of_actual_dead_trees_per_hectare + numbers_of_predicted_dead_trees_per_hectare
+    minimum_number_of_dead_trees_per_hectare = min(all_numbers_of_dead_trees_per_hectare)
+    maximum_number_of_dead_trees_per_hectare = max(all_numbers_of_dead_trees_per_hectare)
+    plt.plot(
+        [minimum_number_of_dead_trees_per_hectare, maximum_number_of_dead_trees_per_hectare],
+        [minimum_number_of_dead_trees_per_hectare, maximum_number_of_dead_trees_per_hectare],
+        'r--',
+        label = 'y = x'
+    )
+    plt.legend()
+    plt.grid()
+    path_to_scatter_plot = os.path.join(args.log, "scatter_plot.png")
+    plt.savefig(path_to_scatter_plot)
+    plt.close()
+    print("Scatter plot was saved to " + path_to_scatter_plot)
     
     vis_dir = os.path.join(args.log, 'visualizations')
     save_visualizations(images, results, names, vis_dir, rearrange_channels = args.rearrange_channels)
