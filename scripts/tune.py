@@ -4,7 +4,7 @@ from utils.evaluate import evaluate
 import argparse
 import os
 import h5py as h5
-from models import SFANet
+from models import SFANetRes
 from utils.preprocess import *
 import optuna
 import yaml
@@ -30,7 +30,7 @@ def main():
     else:
         bands = f.attrs['bands']
         preprocess = eval(f'preprocess_{bands}')
-        training_model, model = SFANet.build_model(
+        training_model, model = SFANetRes.build_model(
             images.shape[1:],
             preprocess_fn=preprocess)
 

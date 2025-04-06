@@ -93,10 +93,6 @@ class SFANetRes(Model):
         dmp_out = amp_out * dmp_out
         # Compute the final confidence map.
         dmp_out = self.conv_out(dmp_out)
-
-        # Add this line to resize `dmp_out` to match the required size (256, 256)
-        dmp_out = tf.image.resize(dmp_out, (256, 256), method='bilinear')
-
         return dmp_out, amp_out
 
 def build_model(input_shape, preprocess_fn=None, bce_loss_weight=0.1, half_res=True):
@@ -113,16 +109,11 @@ def build_model(input_shape, preprocess_fn=None, bce_loss_weight=0.1, half_res=T
     sfanet = SFANetRes(half_res=half_res)
     dmp, amp = sfanet(x)
     
-    # Ensure dmp and amp are resized to (256, 256)
-    dmp_out = layers.Lambda(lambda x: tf.image.resize(x, (256, 256), method='bilinear'), name='dmp_resize')(dmp)
-    amp_out = layers.Lambda(lambda x: tf.image.resize(x, (256, 256), method='bilinear'), name='amp_resize')(amp)
-
-    # Squeeze out the last dimension
-    dmp_squeezed = layers.Lambda(lambda x: tf.squeeze(x, axis=-1), name='dmp_squeeze')(dmp_out)
-    amp_squeezed = layers.Lambda(lambda x: tf.squeeze(x, axis=-1), name='amp_squeeze')(amp_out)
-    
+    # Upsample both dmp and amp from 64x64 to 256x256:
+    dmp_upsampled = layers.UpSampling2D(size=(4, 4), interpolation='bilinear', name='dmp_upsampling')(dmp)
+    amp_upsampled = layers.UpSampling2D(size=(4, 4), interpolation='bilinear', name='amp_upsampling')(amp)
     
     # Build training and testing models
-    training_model = tf.keras.Model(inputs=image, outputs=[dmp_squeezed, amp_squeezed])
-    testing_model = tf.keras.Model(inputs=image, outputs=dmp_squeezed)
+    training_model = tf.keras.Model(inputs=image, outputs=[dmp_upsampled, amp_upsampled])
+    testing_model = tf.keras.Model(inputs=image, outputs=dmp_upsampled)
     return training_model, testing_model

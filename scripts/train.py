@@ -161,7 +161,7 @@ def main():
         preprocess_fn=preprocess_fn
     )
     opt = Adam(args.lr)
-    model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.1])
+    model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.2])
 
     print(model.summary())
     

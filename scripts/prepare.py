@@ -6,10 +6,11 @@ import numpy as np
 from scipy.ndimage import distance_transform_edt
 import tqdm
 
-def process_image(dataset_path, name, sigma, bands):
+def process_image(dataset_path, name, sigma, bands, data_mode):
     image = None
+    name_of_folder_of_images = 'images' if data_mode == 'full' else 'images_small'
     for suffix in ['.tif', '.tiff', '.png']:
-        image_path = os.path.join(dataset_path, 'images', name + suffix)
+        image_path = os.path.join(dataset_path, name_of_folder_of_images, name + suffix)
         if os.path.exists(image_path):
             image = imageio.imread(image_path)
             if image.ndim == 3 and image.shape[0] in [3, 4]:
@@ -20,7 +21,8 @@ def process_image(dataset_path, name, sigma, bands):
     if image is None:
         raise RuntimeError(f'Could not find image for {name}')
 
-    csv_path = os.path.join(dataset_path, 'csv', name + '.csv')
+    name_of_folder_of_csv_files = 'csv' if data_mode == 'full' else 'csv_small'
+    csv_path = os.path.join(dataset_path, name_of_folder_of_csv_files, name + '.csv')
     if os.path.exists(csv_path):
         points = np.loadtxt(csv_path, delimiter = ',', skiprows = 1).astype('int')
         if points.size == 0:
@@ -51,10 +53,10 @@ def augment_images(images):
         augmented.append(np.flipud(rotated))
     return np.stack(augmented)
 
-def process_split(f, dataset_path, split_file, split, sigma, bands, augment = False):
+def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, augment = False):
     with open(os.path.join(dataset_path, split_file), 'r') as sf:
         names = [line.strip() for line in sf]
-    sample_img, sample_gt, sample_conf, sample_att = process_image(dataset_path, names[0], sigma, bands)
+    sample_img, sample_gt, sample_conf, sample_att = process_image(dataset_path, names[0], sigma, bands, data_mode)
     H, W = sample_img.shape[:2]
     C = sample_img.shape[2]
     num_images = len(names)
@@ -69,7 +71,7 @@ def process_split(f, dataset_path, split_file, split, sigma, bands, augment = Fa
     dset_names = f.create_dataset(f"{split}/names", shape = (0,), maxshape = (total_images,), dtype = h5py.string_dtype(), chunks = True)
     idx = 0
     for name in tqdm.tqdm(names, desc = f"Processing {split}"):
-        image, gt, conf, att = process_image(dataset_path, name, sigma, bands)
+        image, gt, conf, att = process_image(dataset_path, name, sigma, bands, data_mode)
         for dset, data in zip([dset_img, dset_gt, dset_conf, dset_att, dset_names], [image, gt, conf, att, name]):
             dset.resize((idx + 1,) + dset.shape[1:])
             dset[idx] = data
@@ -93,18 +95,28 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dataset', help = 'path to dataset')
     parser.add_argument('output', help = 'output path for .h5 file')
-    parser.add_argument('--train', default = 'train.txt', help = 'train split file name')
-    parser.add_argument('--val', default = 'val.txt', help = 'validation split file name')
-    parser.add_argument('--test', default = 'test.txt', help = 'test split file name')
+    parser.add_argument('--data_mode', choices = ['full', 'small'], default = 'full', help = 'Data mode: full uses normal csv, images, train.txt, etc.; small uses csv_small, images_small, train_small.txt, etc.')
+    parser.add_argument('--train', default = None, help = 'train split file name')
+    parser.add_argument('--val', default = None, help = 'validation split file name')
+    parser.add_argument('--test', default = None, help = 'test split file name')
     parser.add_argument('--augment', action = 'store_true', help = 'apply augmentation')
     parser.add_argument('--sigma', type = float, default = 3, help = 'Gaussian kernel size in pixels')
     parser.add_argument('--bands', default = 'RGBN', help = 'input raster bands (RGB or RGBN)')
     args = parser.parse_args()
     
+    if args.data_mode == 'small':
+        train_file = 'train_small.txt' if args.train is None else args.train
+        val_file = 'val_small.txt' if args.val is None else args.val
+        test_file = 'test_small.txt' if args.test is None else args.test
+    else:
+        train_file = 'train.txt' if args.train is None else args.train
+        val_file = 'val.txt' if args.val is None else args.val
+        test_file = 'test.txt' if args.test is None else args.test
+    
     with h5py.File(args.output, 'w') as f:
-        process_split(f, args.dataset, args.train, 'train', args.sigma, args.bands, augment = args.augment)
-        process_split(f, args.dataset, args.val, 'val', args.sigma, args.bands, augment = False)
-        process_split(f, args.dataset, args.test, 'test', args.sigma, args.bands, augment = False)
+        process_split(f, args.dataset, train_file, 'train', args.sigma, args.bands, args.data_mode, augment = args.augment)
+        process_split(f, args.dataset, val_file, 'val', args.sigma, args.bands, args.data_mode, augment = False)
+        process_split(f, args.dataset, test_file, 'test', args.sigma, args.bands, args.data_mode, augment = False)
         f.attrs['bands'] = args.bands
 
 if __name__ == '__main__':
