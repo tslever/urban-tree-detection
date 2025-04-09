@@ -96,7 +96,11 @@ class LossCurvePlotter(tf.keras.callbacks.Callback):
 class DataGenerator(Sequence):
 
     def __init__(self, f, batch_size, shuffle = True, **kwargs):
-        super().__init__(**kwargs)
+        try:
+            super().__init__(**kwargs)
+        except Exception as e:
+            print(f"Warning need to ommit kwargs {e}")
+            super().__init__()
         self.f = f
         self.batch_size = batch_size
         self.shuffle = shuffle
