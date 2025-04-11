@@ -81,7 +81,7 @@ def _tiled_peak_finding(path, input_size, overlap, min_distance, threshold_abs, 
         all_indices = np.concatenate(all_indices, axis = 0)
         return all_indices
 
-def run_tiled_inference(model, input_path, output_path, min_distance, threshold_abs, threshold_rel):
+def run_tiled_inference(model, input_path, output_path, min_distance, threshold_abs, threshold_rel, confidence_output_path = None):
     temp_path = tempfile.NamedTemporaryFile(suffix = '.tif').name
     _tiled_inference(
         model = model,
@@ -97,6 +97,11 @@ def run_tiled_inference(model, input_path, output_path, min_distance, threshold_
         transform = meta['transform']
         confidence_map = f.read(1)
 
+    if confidence_output_path is None:
+        confidence_output_path = os.path.splitext(output_path)[0] + '_confidence.tif'
+    with rasterio.open(confidence_output_path, 'w', **meta) as dest:
+        dest.write(confidence_map, 1)
+        
     indices = _tiled_peak_finding(
         temp_path, input_size = 256, overlap = 32, min_distance = min_distance, threshold_abs = threshold_abs, threshold_rel = threshold_rel
     )
