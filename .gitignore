@@ -1,8 +1,8 @@
-*.hdf5
 .ipynb_checkpoints
 __pycache__
 aggregated_contents.txt
 env
+inferred_geospatial_layer.json
 logs
-output.hdf5
-output.json
+prepared_data.hdf5
+prepared_data_small.hdf5
