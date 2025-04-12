@@ -8,7 +8,7 @@ import os
 import h5py as h5
 import yaml
 from utils.evaluate import evaluate
-from models import SFANetRes
+from models import SFANetEfficient
 from utils.preprocess import *
 import imageio
 import matplotlib as mpl
@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import re
 import rasterio
 import json
+with open('config.json', 'r') as cfg_file:
+    config = json.load(cfg_file)
 
 
 def get_source_image_path(tile_path):
@@ -138,7 +140,7 @@ def main():
     bands = f.attrs['bands']
     
     preprocess = eval(f'preprocess_{bands}')
-    training_model, model = SFANetRes.build_model(
+    training_model, model = SFANetEfficient.build_model(
         images.shape[1:],
         preprocess_fn = preprocess
     )
@@ -164,7 +166,7 @@ def main():
         cropped_gts = []
         cropped_preds = []
         for i, (img, gt, pred) in enumerate(zip(images, gts, preds)):
-            metadata_path = os.path.join("../urban-tree-detection-data/images_based_on_chopped_testing_images", f"{names[i]}.json")
+            metadata_path = os.path.join(config["metadata_base_path"], f"{names[i]}.json")
             cropped_images.append(center_crop(img, metadata_path))
             cropped_gts.append(center_crop(gt, metadata_path))
             cropped_preds.append(center_crop(pred, metadata_path))

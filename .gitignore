@@ -4,6 +4,9 @@ aggregated_contents.txt
 env
 inferred_geospatial_layer.json
 inferred_geospatial_layer_confidence.tif
-logs
+logs*/
 prepared_data.hdf5
 prepared_data_small.hdf5
+*.hdf5
+output_efficient_confidence.tif
+visualizations.tar.gz
