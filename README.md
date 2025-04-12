@@ -36,7 +36,7 @@ To prepare a dataset for training and testing, run the `prepare.py` script.  You
 
 For example,
 
-    python3 -m scripts.prepare ../urban-tree-detection-data output.hdf5
+    python3 -m scripts.prepare ../urban-tree-detection-data prepared_data.hdf5
 
 ### Training ###
 
@@ -46,7 +46,7 @@ To train the model, run the `train.py` script.
 
 For example,
 
-    python3 -m scripts.train output.hdf5 logs 
+    python3 -m scripts.train prepared_data.hdf5 logs 
 
 ### Hyperparameter tuning ###
 
@@ -54,11 +54,19 @@ The model outputs a confidence map, and we use local peak finding to isolate ind
 
     python3 -m scripts.tune <path to hdf5 file> <path to log directory>
 
+For example,
+
+    python3 -m scripts.tune prepared_data.hdf5 logs
+
 ### Evaluation on test set ###
 
 Once hyperparameter tuning finishes, use the `test.py` script to compute evaluation metrics on the test set.
 
-    python3 -m scripts.test <path to hdf5 file> <path to log directory> 
+    python3 -m scripts.test <path to hdf5 file> <path to log directory>
+
+For example,
+
+    python3 -m scripts.test prepared_data.hdf5 logs
 
 ### Inference on a large raster ###
 
@@ -71,7 +79,7 @@ To detect trees in rasters and produce GeoJSONs containing the geo-referenced tr
 
 For example,
 
-    python3 -m scripts.inference ../urban-tree-detection-data/images/bishop_2020_0.tif output.json logs
+    python3 -m scripts.inference ../urban-tree-detection-data/image_for_inference.tif inferred_geospatial_layer.json logs
 
 ### Pre-trained weights ###
 
