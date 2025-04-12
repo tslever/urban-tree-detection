@@ -91,16 +91,19 @@ def run_tiled_inference(model, input_path, output_path, min_distance, threshold_
         overlap = 32)
 
     with rasterio.open(temp_path, 'r') as f:
-        meta = f.meta
+        meta = f.meta.copy()
         epsg = meta['crs'].to_epsg()
         crs = f'EPSG:{epsg}'
         transform = meta['transform']
         confidence_map = f.read(1)
+    
+    massaged_confidence_map = (confidence_map * 1000).round().astype('int16')
+    meta.update(dtype = 'int16')
 
     if confidence_output_path is None:
         confidence_output_path = os.path.splitext(output_path)[0] + '_confidence.tif'
     with rasterio.open(confidence_output_path, 'w', **meta) as dest:
-        dest.write(confidence_map, 1)
+        dest.write(massaged_confidence_map, 1)
         
     indices = _tiled_peak_finding(
         temp_path, input_size = 256, overlap = 32, min_distance = min_distance, threshold_abs = threshold_abs, threshold_rel = threshold_rel
@@ -109,7 +112,7 @@ def run_tiled_inference(model, input_path, output_path, min_distance, threshold_
     if indices.size == 0:
         gdf = gpd.GeoDataFrame({'confidence': []}, geometry = [], crs = crs)
     else:
-        confidences = confidence_map[indices[:, 0], indices[:, 1]]
+        confidences = massaged_confidence_map[indices[:, 0], indices[:, 1]]
         x, y = rasterio.transform.xy(transform, indices[:, 0], indices[:, 1])
         import pandas as pd
         data = {'confidence': confidences}
