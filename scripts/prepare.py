@@ -6,6 +6,8 @@ import numpy as np
 from scipy.ndimage import distance_transform_edt
 import tqdm
 import cv2
+import random
+import tensorflow as tf
 
 def process_image(dataset_path, name, sigma, bands, data_mode):
     image = None
@@ -43,16 +45,83 @@ def process_image(dataset_path, name, sigma, bands, data_mode):
     attention = (confidence > 0.001).astype('float32').squeeze(axis = -1)
     return image, gt, confidence, attention
 
-def augment_images(image):
+# def augment_images(image):
+#     """
+#     Given a single image (2D or 3D), return 8 augmented versions:
+#     4 rotations (0°, 90°, 180°, 270°) + their vertical flips.
+#     """
+#     augmented = []
+#     for k in range(4):
+#         rotated = np.rot90(image, k=k)
+#         augmented.append(rotated)
+#         augmented.append(np.flipud(rotated))
+#     return np.stack(augmented)
+
+def augment_images(image, seed, keep_dims=False):
     """
     Given a single image (2D or 3D), return 8 augmented versions:
     4 rotations (0°, 90°, 180°, 270°) + their vertical flips.
+    `keep_dims`: if True, always return 3D arrays (e.g., (H, W, 1)).
+                 if False, return 2D arrays when input was 2D.
     """
+
+    def to_3d(image):
+        image = np.asarray(image)
+        if image.ndim == 2:
+            image = image[..., np.newaxis]
+        return image
+
+    def from_3d(image):
+        if not keep_dims and image.shape[2] == 1:
+            return image[..., 0]  # Back to 2D
+        return image
+
+    def contrast(image):
+        image = to_3d(image)
+        image = tf.image.adjust_contrast(tf.convert_to_tensor(image, dtype=tf.float32), contrast_factor=0.8)
+        return from_3d(image.numpy())
+
+    def brightness(image):
+        image = to_3d(image)
+        image = tf.image.adjust_brightness(tf.convert_to_tensor(image, dtype=tf.float32), delta=0.2)
+        return from_3d(image.numpy())
+
+    def crop(image):
+        image = to_3d(image)
+        image = tf.image.resize(image, [256, 256])
+        image = tf.cast(image, tf.float32)
+        cropped = tf.image.random_crop(image, size=[224, 224, image.shape[2]])
+        return from_3d(tf.image.resize(cropped, [256, 256]).numpy())
+
+    def flip(image):
+        image = to_3d(image)
+        flipped = tf.image.flip_left_right(image).numpy()
+        return from_3d(flipped)
+
+    def rotate(image, k):
+        image = to_3d(image)
+        return from_3d(np.rot90(image, k=k))
+
     augmented = []
-    for k in range(4):
-        rotated = np.rot90(image, k=k)
-        augmented.append(rotated)
-        augmented.append(np.flipud(rotated))
+
+    if seed == 0:
+        for k in range(0,2):
+            rotated = rotate(image, k)
+            augmented.append(rotated)
+            augmented.append(flip(rotated))
+    elif seed == 1:
+        augmented.extend([crop(image), brightness(image), contrast(image), flip(image)])
+    elif seed == 2:
+        augmented.extend([crop(image), rotate(image, k=1), contrast(image), flip(image)])
+    elif seed == 3:
+        augmented.extend([rotate(image, k=3), brightness(image), contrast(image), flip(image)])
+    elif seed == 4:
+        augmented.extend([crop(image), brightness(image), contrast(image), rotate(image, k=1)])
+    elif seed == 5:
+        augmented.extend([crop(image), brightness(image), rotate(image, k=3), flip(image)])
+    elif seed == 6:
+        augmented.extend([rotate(image, k=1), rotate(image, k=3), contrast(image), brightness(image)])
+    
     return np.stack(augmented)
 
 def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, augment = False):
@@ -79,11 +148,12 @@ def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, a
             dset[idx] = data
         idx += 1
         if augment:
-            aug_imgs = augment_images(image)
-            aug_gts = augment_images(gt)         # shape (8, H, W)
-            aug_confs = augment_images(conf)     # shape (8, H, W, 1)
-            aug_atts = augment_images(att)       # shape (8, H, W)
-            for i in range(1, 8):  # Skip the first since it’s already added
+            seed = random.randint(0,6)
+            aug_imgs = augment_images(image, seed)
+            aug_gts = augment_images(gt, seed, keep_dims=False)         # shape (8, H, W)
+            aug_confs = augment_images(conf, seed, keep_dims=True)      # shape (8, H, W, 1)
+            aug_atts = augment_images(att, seed, keep_dims=False)       # shape (8, H, W)
+            for i in range(1, 4):  # Skip the first since it’s already added
                 aug_img = aug_imgs[i]
                 aug_gt = aug_gts[i]
                 aug_conf = aug_confs[i]
