@@ -1,3 +1,4 @@
 {
-  "metadata_base_path": "../urban-tree-detection-data/images_based_on_chopped_testing_images"
+  "metadata_base_path": "../urban-tree-detection-data/images_based_on_chopped_testing_images",
+  "model": "vgg"
 }
