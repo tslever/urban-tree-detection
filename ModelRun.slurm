@@ -2,24 +2,22 @@
 
 #Submit this script with: sbatch myjob.slurm
 
-#SBATCH --time=0:24:00   # job time limit
-#SBATCH --nodes=1   # number of nodes
-#SBATCH --ntasks-per-node=1   # number of tasks per node
-#SBATCH --cpus-per-task=40   # number of CPU cores per task
-#SBATCH --gres=gpu:a6000:4   # gpu devices per node
-#SBATCH --partition=gpu   # partition
-#SBATCH --mem=768G   # memory
-#SBATCH -J "ModelRun"   # job name
-#SBATCH --mail-user=bdj9wf@virginia.edu   # email address
+#SBATCH --time=0:24:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --gres=gpu:a6000:4
+#SBATCH --partition=gpu
+#SBATCH --mem=250G
+#SBATCH -J "ModelRun"
+#SBATCH --mail-user=bdj9wf@virginia.edu
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
 #SBATCH --mail-type=FAIL
-#SBATCH --account=sds_capstone_atashman   # allocation name
+#SBATCH --account=sds_capstone_atashman
 
 
-
-python -m venv env
-source env/bin/activate
+source /project/SDS/capstones_yang/urban-tree-detection/env/bin/activate
 pip install tensorflow[and-cuda]==2.18.0
 pip install numpy
 pip install imageio
