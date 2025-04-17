@@ -13,95 +13,110 @@ import tempfile
 
 import geopandas as gpd
 
-def _tiled_inference(model,input_path,output_path,tile_size,overlap):
+def _tiled_inference(model, input_path, output_path, tile_size, overlap):
     nbands = model.input_shape[-1]
-    with rasterio.open(input_path,'r') as src:
+    with rasterio.open(input_path, 'r') as src:
         meta = src.meta
         height = meta['height']
         width = meta['width']
         nodata = meta['nodata']
         
-        padded_size = tile_size+overlap*2
+        padded_size = tile_size + overlap * 2
         
         meta['count'] = 1
         meta['dtype'] = 'float32'
-        with rasterio.open(output_path,'w',**meta) as dest:
+        with rasterio.open(output_path, 'w', **meta) as dest:
         
-            for row in range(overlap,height-overlap,tile_size):
-                for col in range(overlap,width-overlap,tile_size):
-                    window = rasterio.windows.Window(col-overlap,row-overlap,padded_size,padded_size)
-                    image = src.read(range(1,nbands+1),window=window)
-                    image = np.expand_dims(np.transpose(image,[1,2,0]),axis=0)
+            for row in range(overlap, height - overlap, tile_size):
+                for col in range(overlap, width - overlap, tile_size):
+                    window = rasterio.windows.Window(col - overlap, row - overlap, padded_size, padded_size)
+                    image = src.read(range(1, nbands + 1), window = window)
+                    image = np.expand_dims(np.transpose(image, [1, 2, 0]), axis = 0)
                     
-                    down_pad = max(0,padded_size-image.shape[1])
-                    right_pad = max(0,padded_size-image.shape[2])
-                    image = np.pad(image,((0,0),(0,down_pad),(0,right_pad),(0,0)))
+                    down_pad = max(0, padded_size - image.shape[1])
+                    right_pad = max(0, padded_size - image.shape[2])
+                    image = np.pad(image, ((0,0), (0, down_pad), (0, right_pad), (0,0)))
             
-                    output = model.predict(image,verbose=False)
+                    output = model.predict(image, verbose = False)
                     
                     # zero out "no data" pixels
-                    mask = np.all(image==nodata,axis=-1)
+                    mask = np.all(image == nodata, axis = -1)
                     output[mask] = 0
 
-                    output_crop = output[0,overlap:-overlap,overlap:-overlap,0]
+                    output_crop = output[0, overlap:-overlap, overlap:-overlap, 0]
 
-                    h = min(height-row,output_crop.shape[0])
-                    w = min(width-col,output_crop.shape[1])
-                    window = rasterio.windows.Window(col,row,w,h)
-                    dest.write(output_crop[None,:h,:w],window=window)
+                    h = min(height - row, output_crop.shape[0])
+                    w = min(width - col, output_crop.shape[1])
+                    window = rasterio.windows.Window(col, row, w, h)
+                    dest.write(output_crop[None,:h,:w], window = window)
 
-def _tiled_peak_finding(path,input_size,overlap,min_distance,threshold_abs,threshold_rel):
-    with rasterio.open(path,'r') as f:
+def _tiled_peak_finding(path, input_size, overlap, min_distance, threshold_abs, threshold_rel):
+    with rasterio.open(path, 'r') as f:
         meta = f.meta
         height = meta['height']
         width = meta['width']
         
-        padded_size = input_size+overlap*2
+        padded_size = input_size + overlap * 2
         
         all_indices = []
         
-        for row in range(overlap,height-overlap,input_size):
-            for col in range(overlap,width-overlap,input_size):
-                window = rasterio.windows.Window(col-overlap,row-overlap,padded_size,padded_size)
-                image = np.squeeze(f.read(1,window=window))
+        for row in range(overlap, height - overlap, input_size):
+            for col in range(overlap, width - overlap, input_size):
+                window = rasterio.windows.Window(col - overlap, row - overlap, padded_size, padded_size)
+                image = np.squeeze(f.read(1, window = window))
                 
-                indices = peak_local_max(image,min_distance=min_distance,threshold_abs=threshold_abs,threshold_rel=threshold_rel)
+                indices = peak_local_max(image, min_distance = min_distance, threshold_abs = threshold_abs, threshold_rel = threshold_rel)
                 
                 good = np.all(np.stack([
-                    indices[:,0] >= overlap,
-                    indices[:,0] < overlap+input_size,
-                    indices[:,1] >= overlap,
-                    indices[:,1] < overlap+input_size],
-                    axis=-1),axis=-1)
+                    indices[:, 0] >= overlap,
+                    indices[:, 0] < overlap + input_size,
+                    indices[:, 1] >= overlap,
+                    indices[:, 1] < overlap + input_size],
+                    axis = -1), axis = -1)
                 indices = indices[good]
-                indices[:,0] += row-overlap
-                indices[:,1] += col-overlap
+                indices[:, 0] += row - overlap
+                indices[:, 1] += col - overlap
                 
                 all_indices.append(indices)
-        all_indices = np.concatenate(all_indices,axis=0)
+        all_indices = np.concatenate(all_indices, axis = 0)
         return all_indices
 
-def run_tiled_inference(model,input_path,output_path,min_distance,threshold_abs,threshold_rel):
-    temp_path = tempfile.NamedTemporaryFile(suffix='.tif').name
+def run_tiled_inference(model, input_path, output_path, min_distance, threshold_abs, threshold_rel, confidence_output_path = None):
+    temp_path = tempfile.NamedTemporaryFile(suffix = '.tif').name
     _tiled_inference(
-        model=model,
-        input_path=input_path,
-        output_path=temp_path,
-        tile_size=2048,
-        overlap=32)
+        model = model,
+        input_path = input_path,
+        output_path = temp_path,
+        tile_size = 2048,
+        overlap = 32)
 
-    with rasterio.open(temp_path,'r') as f:
-        meta = f.meta
+    with rasterio.open(temp_path, 'r') as f:
+        meta = f.meta.copy()
         epsg = meta['crs'].to_epsg()
         crs = f'EPSG:{epsg}'
         transform = meta['transform']
+        confidence_map = f.read(1)
+    
+    massaged_confidence_map = (confidence_map * 1000).round().astype('int16')
+    meta.update(dtype = 'int16')
 
-    indices = _tiled_peak_finding(temp_path,input_size=256,overlap=32,min_distance=min_distance,threshold_abs=threshold_abs,threshold_rel=threshold_rel)
+    if confidence_output_path is None:
+        confidence_output_path = os.path.splitext(output_path)[0] + '_confidence.tif'
+    with rasterio.open(confidence_output_path, 'w', **meta) as dest:
+        dest.write(massaged_confidence_map, 1)
+        
+    indices = _tiled_peak_finding(
+        temp_path, input_size = 256, overlap = 32, min_distance = min_distance, threshold_abs = threshold_abs, threshold_rel = threshold_rel
+    )
+    
+    if indices.size == 0:
+        gdf = gpd.GeoDataFrame({'confidence': []}, geometry = [], crs = crs)
+    else:
+        confidences = massaged_confidence_map[indices[:, 0], indices[:, 1]]
+        x, y = rasterio.transform.xy(transform, indices[:, 0], indices[:, 1])
+        import pandas as pd
+        data = {'confidence': confidences}
+        gdf = gpd.GeoDataFrame(data, geometry = gpd.points_from_xy(x, y), crs = crs)
 
-    x,y = rasterio.transform.xy(transform,indices[:,0],indices[:,1])
-
-    gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x,y),crs=crs)
-    gdf.to_file(output_path,driver='GeoJSON')
-
+    gdf.to_file(output_path, driver = 'GeoJSON')
     os.remove(temp_path)
-

@@ -8,7 +8,7 @@ import os
 import h5py as h5
 import yaml
 from utils.evaluate import evaluate
-from models import SFANet
+from models import SFANet, SFANetRes, SFANetEfficient
 from utils.preprocess import *
 import imageio
 import matplotlib as mpl
@@ -17,6 +17,8 @@ import matplotlib.pyplot as plt
 import re
 import rasterio
 import json
+with open('config.json', 'r') as f:
+    config = json.load(f)
 
 
 def get_source_image_path(tile_path):
@@ -108,7 +110,7 @@ def main():
     parser.add_argument('--max_distance', type = float, default = 10, help = 'max distance from ground truth to pred tree (in pixels)')
     parser.add_argument('--rearrange_channels', action = 'store_true', help = 'Rearrange image channels for visualization if provided')
     parser.add_argument('--center_crop', action = 'store_true', help = 'Evaluate only on the center 166 x 166 pixels of each test image.')
-
+    
     args = parser.parse_args()
 
     params_path = os.path.join(args.log, 'params.yaml')
@@ -138,10 +140,20 @@ def main():
     bands = f.attrs['bands']
     
     preprocess = eval(f'preprocess_{bands}')
-    training_model, model = SFANet.build_model(
-        images.shape[1:],
-        preprocess_fn = preprocess
-    )
+    
+    model_type = config.get("model", "vgg")
+
+    if model_type == 'vgg':
+        model_builder = SFANet
+    elif model_type == 'resnet':
+        model_builder = SFANetRes
+    elif model_type == 'efficientnet':
+        model_builder = SFANetEfficient
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
+
+    training_model, model = model_builder.build_model(images.shape[1:], preprocess_fn=preprocess)
+
 
     weights_path = os.path.join(args.log, 'best.weights.h5')
     training_model.load_weights(weights_path)
@@ -164,7 +176,7 @@ def main():
         cropped_gts = []
         cropped_preds = []
         for i, (img, gt, pred) in enumerate(zip(images, gts, preds)):
-            metadata_path = os.path.join("/project/SDS/capstones_yang/urban-tree-detection-data/images_based_on_chopped_testing_images", f"{names[i]}.json")
+            metadata_path = os.path.join(config["metadata_base_path"], f"{names[i]}.json")
             cropped_images.append(center_crop(img, metadata_path))
             cropped_gts.append(center_crop(gt, metadata_path))
             cropped_preds.append(center_crop(pred, metadata_path))

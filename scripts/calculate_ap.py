@@ -5,9 +5,13 @@ import os
 import h5py as h5
 import yaml
 from utils.evaluate import test_all_thresholds, calculate_ap
-from models import SFANet
+from models import SFANet, SFANetRes, SFANetEfficient
 from utils.preprocess import *
 import imageio
+import json
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -16,7 +20,7 @@ def main():
     parser.add_argument('log', help='path to log directory')
     parser.add_argument('--max_distance', type=float, default=10, help='max distance from gt to pred tree (in pixels)')
     parser.add_argument('--center_crop', action = 'store_true', help = 'Evaluate only on the center 166 x 166 pixels of each test image')
-
+    
     args = parser.parse_args()
 
     f = h5.File(args.data, 'r')
@@ -30,10 +34,19 @@ def main():
         bands = f.attrs['bands']
 
         preprocess = eval(f'preprocess_{bands}')
-        training_model, model = SFANet.build_model(
-            images.shape[1:],
-            preprocess_fn = preprocess
-        )
+        
+        model_type = config.get("model", "vgg")
+
+        if model_type == 'vgg':
+            model_builder = SFANet
+        elif model_type == 'resnet':
+            model_builder = SFANetRes
+        elif model_type == 'efficientnet':
+            model_builder = SFANetEfficient
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+        training_model, model = model_builder.build_model(images.shape[1:], preprocess_fn=preprocess)
 
         weights_path = os.path.join(args.log, 'best.weights.h5')
         training_model.load_weights(weights_path)

@@ -6,7 +6,7 @@ from tensorflow.keras.utils import Sequence
 import glob
 import numpy as np
 
-from models import SFANet
+from models import SFANet, SFANetRes, SFANetEfficient
 from utils.preprocess import *
 
 import argparse
@@ -16,6 +16,11 @@ import sys
 import h5py as h5
 
 import matplotlib.pyplot as plt
+
+import json
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
 
 
 class EarlyStopping(tf.keras.callbacks.Callback):
@@ -160,10 +165,27 @@ def main():
     
     preprocess_fn = eval(f'preprocess_{bands}')
     
-    model, testing_model = SFANet.build_model(
-        val_images.shape[1:],
-        preprocess_fn=preprocess_fn
-    )
+    model_type = config.get("model", "vgg")
+
+    if model_type == 'vgg':
+        from models import SFANet
+        model, testing_model = SFANet.build_model(
+            val_images.shape[1:], preprocess_fn=preprocess_fn
+        )
+    elif model_type == 'resnet':
+        from models import SFANetRes
+        model, testing_model = SFANetRes.build_model(
+            val_images.shape[1:], preprocess_fn=preprocess_fn
+        )
+    elif model_type == 'efficientnet':
+        from models import SFANetEfficient
+        model, testing_model = SFANetEfficient.build_model(
+            val_images.shape[1:], preprocess_fn=preprocess_fn
+        )
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
+
+    
     opt = Adam(args.lr)
     model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.2])
 

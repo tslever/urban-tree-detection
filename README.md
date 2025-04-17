@@ -79,7 +79,7 @@ To detect trees in rasters and produce GeoJSONs containing the geo-referenced tr
 
 For example,
 
-    python3 -m scripts.inference ../urban-tree-detection-data/images/bishop_2020_0.tif output.json logs
+    python3 -m scripts.inference ../urban-tree-detection-data/image_for_inference.tif inferred_geospatial_layer.json logs
 
 ### Pre-trained weights ###
 

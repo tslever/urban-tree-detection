@@ -4,12 +4,16 @@ from utils.evaluate import evaluate
 import argparse
 import os
 import h5py as h5
-from models import SFANet
+from models import SFANet, SFANetRes, SFANetEfficient
 from utils.preprocess import *
 import optuna
 import yaml
 import numpy as np
 
+import json
+with open('config.json', 'r') as f:
+    config = json.load(f)
+    
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('data', help='path to data hdf5 file')
@@ -30,9 +34,24 @@ def main():
     else:
         bands = f.attrs['bands']
         preprocess = eval(f'preprocess_{bands}')
-        training_model, model = SFANet.build_model(
-            images.shape[1:],
-            preprocess_fn=preprocess)
+
+        model_type = config.get("model", "vgg")
+
+        if model_type == 'vgg':
+            model_builder = SFANet
+        elif model_type == 'resnet':
+            model_builder = SFANetRes
+        elif model_type == 'efficientnet':
+            model_builder = SFANetEfficient
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+        training_model, model = model_builder.build_model(images.shape[1:], preprocess_fn=preprocess)
+
+        weights_path = os.path.join(args.log, 'best.weights.h5')
+        training_model.load_weights(weights_path)
+
+
 
         weights_path = os.path.join(args.log,'best.weights.h5')
         training_model.load_weights(weights_path)
