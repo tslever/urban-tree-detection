@@ -1,6 +1,7 @@
 *.hdf5
 ModelRun.ipynb
 .ipynb_checkpoints
+*.out
 __pycache__
 aggregated_contents.txt
 env
