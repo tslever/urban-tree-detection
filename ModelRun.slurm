@@ -2,13 +2,14 @@
 
 #Submit this script with: sbatch myjob.slurm
 
-#SBATCH --time=0:24:00
+#SBATCH --time=72:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
-#SBATCH --gres=gpu:a6000:4
+#SBATCH --cpus-per-task=8
 #SBATCH --partition=gpu
-#SBATCH --mem=250G
+#SBATCH --constraint="a100|a40|a6000|v100"
+#SBATCH --mem=16G
+#SBATCH --gres=gpu:1
 #SBATCH -J "ModelRun"
 #SBATCH --mail-user=bdj9wf@virginia.edu
 #SBATCH --mail-type=BEGIN
@@ -18,20 +19,9 @@
 
 
 source /project/SDS/capstones_yang/urban-tree-detection/env/bin/activate
-pip install tensorflow[and-cuda]==2.18.0
-pip install numpy
-pip install imageio
-pip install rasterio
-pip install geopandas
-pip install h5py
-pip install scipy
-pip install tqdm
-pip install scikit-image
-pip install scikit-learn
-pip install optuna
-pip install matplotlib
 
 python3 -m scripts.prepare /project/SDS/capstones_yang/urban-tree-detection-data output.hdf5 --data_mode full --augment
 python3 -m scripts.train output.hdf5 logs
 python3 -m scripts.tune output.hdf5 logs
 python3 -m scripts.test output.hdf5 logs --center_crop --rearrange_channels
+python3 -m scripts.inference /project/SDS/capstones_yang/urban-tree-detection-data/image_for_inference_v2.tif inferred_geospatial_layer.json logs
