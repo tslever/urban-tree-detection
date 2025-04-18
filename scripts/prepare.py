@@ -45,17 +45,6 @@ def process_image(dataset_path, name, sigma, bands, data_mode):
     attention = (confidence > 0.001).astype('float32').squeeze(axis = -1)
     return image, gt, confidence, attention
 
-# def augment_images(image):
-#     """
-#     Given a single image (2D or 3D), return 8 augmented versions:
-#     4 rotations (0°, 90°, 180°, 270°) + their vertical flips.
-#     """
-#     augmented = []
-#     for k in range(4):
-#         rotated = np.rot90(image, k=k)
-#         augmented.append(rotated)
-#         augmented.append(np.flipud(rotated))
-#     return np.stack(augmented)
 
 def augment_images(image, seed, keep_dims=False, no_aug=False):
     """
