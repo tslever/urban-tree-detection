@@ -214,7 +214,7 @@ def main():
     '''
     numbers_of_actual_dead_trees_per_hectare = []
     numbers_of_predicted_dead_trees_per_hectare = []
-    for gt_locs, tp_locs, fp_locs in zip(results['gt_locs'], results['tp_locs'], results['fp_locs']):
+    for i, (gt_locs, tp_locs, fp_locs) in enumerate(zip(results['gt_locs'], results['tp_locs'], results['fp_locs'])):
         number_of_actual_dead_trees = len(gt_locs)
         number_of_predicted_dead_trees = len(tp_locs) + len(fp_locs)
         '''

@@ -62,7 +62,7 @@ For example,
 
 Once hyperparameter tuning finishes, use the `test.py` script to compute evaluation metrics on the test set.
 
-    python3 -m scripts.test <path to hdf5 file> <path to log directory>
+    python3 -m scripts.test <path to hdf5 file> <path to log directory> --center_crop --rearrange_channels
 
 For example,
 
@@ -72,10 +72,7 @@ For example,
 
 To detect trees in rasters and produce GeoJSONs containing the geo-referenced trees, use the `inference.py` script.  The script can process a single raster or a directory of rasters.
 
-    python3 -m scripts.inference <input tiff or directory> \
-                                 <output json or directory> \
-                                 <path to log directory> \
-                                 --bands <RGB or RGBN>
+    python3 -m scripts.inference <input tiff or directory> <output json or directory> <path to log directory> --bands <RGB or RGBN>
 
 For example,
 
