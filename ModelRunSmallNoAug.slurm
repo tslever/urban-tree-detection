@@ -2,13 +2,13 @@
 
 #Submit this script with: sbatch myjob.slurm
 
-#SBATCH --time=72:00:00
+#SBATCH --time=10:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=2
 #SBATCH --partition=gpu
 #SBATCH --constraint="a100|a40|a6000|v100"
-#SBATCH --mem=16G
+#SBATCH --mem=8G
 #SBATCH --gres=gpu:1
 #SBATCH -J "Small No Aug"
 #SBATCH --mail-user=bdj9wf@virginia.edu

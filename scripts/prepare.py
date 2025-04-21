@@ -5,7 +5,6 @@ import h5py
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 import tqdm
-import cv2
 import random
 import tensorflow as tf
 
