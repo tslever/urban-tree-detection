@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications import EfficientNetB5
 
 class EfficientNet(Model):
     def __init__(self, output_layer_names):
@@ -12,7 +12,7 @@ class EfficientNet(Model):
                 Example: ['block2a_activation', 'block3a_activation', 'block4a_activation', 'block6a_activation']
         """
         super(EfficientNet, self).__init__()
-        base_model = EfficientNetB0(include_top=False, weights='imagenet')
+        base_model = EfficientNetB5(include_top=False, weights='imagenet')
         outputs = [base_model.get_layer(name).output for name in output_layer_names]
         self.model = tf.keras.Model(inputs=base_model.input, outputs=outputs)
 
