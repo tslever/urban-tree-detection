@@ -53,7 +53,7 @@ def augment_images(image, seed, keep_dims=False, apply_color_aug=False):
 
     def from_3d(image):
         if not keep_dims and image.shape[2] == 1:
-            return image[..., 0]  # Back to 2D
+            return image[..., 0]
         return image
 
     def contrast(image):
@@ -94,29 +94,42 @@ def augment_images(image, seed, keep_dims=False, apply_color_aug=False):
         if apply_color_aug:
             augmented.append(brightness(image))
             augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
         augmented.append(flip(image))
     elif seed == 2:
         augmented.append(crop(image))
         augmented.append(rotate(image, k=1))
         if apply_color_aug:
             augmented.append(contrast(image))
+        else:
+            augmented.append(image)
         augmented.append(flip(image))
     elif seed == 3:
         augmented.append(rotate(image, k=3))
         if apply_color_aug:
             augmented.append(brightness(image))
             augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
         augmented.append(flip(image))
     elif seed == 4:
         augmented.append(crop(image))
         if apply_color_aug:
             augmented.append(brightness(image))
             augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
         augmented.append(rotate(image, k=1))
     elif seed == 5:
         augmented.append(crop(image))
         if apply_color_aug:
             augmented.append(brightness(image))
+        else:
+            augmented.append(image)
         augmented.append(rotate(image, k=3))
         augmented.append(flip(image))
     elif seed == 6:
@@ -125,8 +138,12 @@ def augment_images(image, seed, keep_dims=False, apply_color_aug=False):
         if apply_color_aug:
             augmented.append(contrast(image))
             augmented.append(brightness(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
 
     return np.stack(augmented)
+
 
 def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, augment = False):
     with open(os.path.join(dataset_path, split_file), 'r') as sf:
