@@ -151,22 +151,22 @@ def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, a
             dset.resize((idx + 1,) + dset.shape[1:])
             dset[idx] = data
         idx += 1
-	if augment:
-	    seed = random.randint(0, 6)
-	    aug_imgs = augment_images(image, seed, apply_color_aug=True)
-	    aug_gts = augment_images(gt, seed, keep_dims=False, apply_color_aug=False)
-	    aug_confs = augment_images(conf, seed, keep_dims=True, apply_color_aug=False)
-	    aug_atts = augment_images(att, seed, keep_dims=False, apply_color_aug=False)
-	    for i in range(1, 4):  # Skip the first since it’s already added
-	        aug_img = aug_imgs[i]
-	        aug_gt = aug_gts[i]
-	        aug_conf = aug_confs[i]
-	        aug_att = aug_atts[i]
-	        for dset, data in zip([dset_img, dset_gt, dset_conf, dset_att, dset_names],
-	                              [aug_img, aug_gt, aug_conf, aug_att, name]):
-	            dset.resize((idx + 1,) + dset.shape[1:])
-	            dset[idx] = data
-	        idx += 1
+        if augment:
+            seed = random.randint(0, 6)
+            aug_imgs = augment_images(image, seed, apply_color_aug=True)
+            aug_gts = augment_images(gt, seed, keep_dims=False, apply_color_aug=False)
+            aug_confs = augment_images(conf, seed, keep_dims=True, apply_color_aug=False)
+            aug_atts = augment_images(att, seed, keep_dims=False, apply_color_aug=False)
+            for i in range(1, 4):
+                aug_img = aug_imgs[i]
+                aug_gt = aug_gts[i]
+                aug_conf = aug_confs[i]
+                aug_att = aug_atts[i]
+                for dset, data in zip([dset_img, dset_gt, dset_conf, dset_att, dset_names],
+                                      [aug_img, aug_gt, aug_conf, aug_att, name]):
+                    dset.resize((idx + 1,) + dset.shape[1:])
+                    dset[idx] = data
+                idx += 1
 
 def main():
     parser = argparse.ArgumentParser()
