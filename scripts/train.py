@@ -140,6 +140,7 @@ def main():
     parser.add_argument('--epochs', type=int, default = 1_000_000, help='num epochs')
     parser.add_argument('--batch_size', type=int, default=8, help='batch size')
     parser.add_argument('--resume', action='store_true', help='Resume training from latest checkpoint if early stopping has not occurred')
+    parser.add_argument('--loss', choices = ['BCE', 'BFCE', 'Dice', 'CFCE'], default = 'BCE', help='change loss function')
 
     args = parser.parse_args()
 
@@ -187,8 +188,39 @@ def main():
 
     
     opt = Adam(args.lr)
-    model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.2])
-
+    
+    #loss functions
+    if args.loss == 'BCE':
+        print(" ---------------------------Using BCE loss function--------------------------------") 
+        model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.2])
+    
+    elif args.loss == 'CFCE':
+        print("---------------------------Using CFCE loss function----------------------------------") 
+        model.compile(optimizer = opt, loss = ['mse', 'categorical_focal_crossentropy'], loss_weights = [1, 0.2])
+            
+    elif args.loss == 'BFCE':
+        print("---------------------------Using BFCE loss function----------------------------------") 
+        def binary_focal_loss(alpha=0.5, gamma=1.5):
+            def focal_loss(y_true, y_pred):
+                y_pred = tf.clip_by_value(y_pred, tf.keras.backend.epsilon(), 1. - tf.keras.backend.epsilon())
+                cross_entropy = -y_true * tf.math.log(y_pred) - (1 - y_true) * tf.math.log(1 - y_pred)
+                weight = alpha * y_true * tf.pow(1 - y_pred, gamma) + \
+                         (1 - alpha) * (1 - y_true) * tf.pow(y_pred, gamma)
+                loss = weight * cross_entropy
+                return tf.reduce_mean(loss, axis=-1)
+            return focal_loss
+        
+        model.compile(optimizer=opt,
+              loss=['mse', binary_focal_loss(alpha=0.5, gamma=1.5)],
+              loss_weights=[1, 0.1])
+        
+    elif args.loss == 'Dice':
+        print("-------------------------------Using Dice loss function------------------------------") 
+        model.compile(optimizer = opt, loss = ['mse', 'dice'], loss_weights = [1, 0.2])
+    
+    else:
+        print("-------------------------------Using BCE loss function-------------------------------") 
+        model.compile(optimizer = opt, loss = ['mse', 'binary_crossentropy'], loss_weights = [1, 0.2])
     print(model.summary())
     
     os.makedirs(args.log, exist_ok = True)
