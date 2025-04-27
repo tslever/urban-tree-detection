@@ -44,15 +44,7 @@ def process_image(dataset_path, name, sigma, bands, data_mode):
     attention = (confidence > 0.001).astype('float32').squeeze(axis = -1)
     return image, gt, confidence, attention
 
-
-def augment_images(image, seed, keep_dims=False, no_aug=False):
-    """
-    Given a single image (2D or 3D), return 8 augmented versions:
-    4 rotations (0°, 90°, 180°, 270°) + their vertical flips.
-    `keep_dims`: if True, always return 3D arrays (e.g., (H, W, 1)).
-                 if False, return 2D arrays when input was 2D.
-    """
-
+def augment_images(image, seed, keep_dims=False, apply_color_aug=False):
     def to_3d(image):
         image = np.asarray(image)
         if image.ndim == 2:
@@ -61,15 +53,15 @@ def augment_images(image, seed, keep_dims=False, no_aug=False):
 
     def from_3d(image):
         if not keep_dims and image.shape[2] == 1:
-            return image[..., 0]  # Back to 2D
+            return image[..., 0]
         return image
 
-    def contrast(image, no_aug=False):
+    def contrast(image):
         image = to_3d(image)
         image = tf.image.adjust_contrast(tf.convert_to_tensor(image, dtype=tf.float32), contrast_factor=0.8)
         return from_3d(image.numpy())
 
-    def brightness(image, no_aug=False):
+    def brightness(image):
         image = to_3d(image)
         image = tf.image.adjust_brightness(tf.convert_to_tensor(image, dtype=tf.float32), delta=0.2)
         return from_3d(image.numpy())
@@ -93,24 +85,65 @@ def augment_images(image, seed, keep_dims=False, no_aug=False):
     augmented = []
 
     if seed == 0:
-        for k in range(0,2):
+        for k in range(0, 2):
             rotated = rotate(image, k)
             augmented.append(rotated)
             augmented.append(flip(rotated))
     elif seed == 1:
-        augmented.extend([crop(image), brightness(image, no_aug), contrast(image, no_aug), flip(image)])
+        augmented.append(crop(image))
+        if apply_color_aug:
+            augmented.append(brightness(image))
+            augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
+        augmented.append(flip(image))
     elif seed == 2:
-        augmented.extend([crop(image), rotate(image, k=1), contrast(image, no_aug), flip(image)])
+        augmented.append(crop(image))
+        augmented.append(rotate(image, k=1))
+        if apply_color_aug:
+            augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+        augmented.append(flip(image))
     elif seed == 3:
-        augmented.extend([rotate(image, k=3), brightness(image, no_aug), contrast(image, no_aug), flip(image)])
+        augmented.append(rotate(image, k=3))
+        if apply_color_aug:
+            augmented.append(brightness(image))
+            augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
+        augmented.append(flip(image))
     elif seed == 4:
-        augmented.extend([crop(image), brightness(image, no_aug), contrast(image, no_aug), rotate(image, k=1)])
+        augmented.append(crop(image))
+        if apply_color_aug:
+            augmented.append(brightness(image))
+            augmented.append(contrast(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
+        augmented.append(rotate(image, k=1))
     elif seed == 5:
-        augmented.extend([crop(image), brightness(image, no_aug), rotate(image, k=3), flip(image)])
+        augmented.append(crop(image))
+        if apply_color_aug:
+            augmented.append(brightness(image))
+        else:
+            augmented.append(image)
+        augmented.append(rotate(image, k=3))
+        augmented.append(flip(image))
     elif seed == 6:
-        augmented.extend([rotate(image, k=1), rotate(image, k=3), contrast(image, no_aug), brightness(image, no_aug)])
+        augmented.append(rotate(image, k=1))
+        augmented.append(rotate(image, k=3))
+        if apply_color_aug:
+            augmented.append(contrast(image))
+            augmented.append(brightness(image))
+        else:
+            augmented.append(image)
+            augmented.append(image)
 
     return np.stack(augmented)
+
 
 def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, augment = False):
     with open(os.path.join(dataset_path, split_file), 'r') as sf:
@@ -136,12 +169,12 @@ def process_split(f, dataset_path, split_file, split, sigma, bands, data_mode, a
             dset[idx] = data
         idx += 1
         if augment:
-            seed = random.randint(0,6)
-            aug_imgs = augment_images(image, seed)
-            aug_gts = augment_images(gt, seed, keep_dims=False, no_aug=True)         # shape (8, H, W)
-            aug_confs = augment_images(conf, seed, keep_dims=True, no_aug=True)      # shape (8, H, W, 1)
-            aug_atts = augment_images(att, seed, keep_dims=False, no_aug=True)       # shape (8, H, W)
-            for i in range(1, 4):  # Skip the first since it’s already added
+            seed = random.randint(0, 6)
+            aug_imgs = augment_images(image, seed, apply_color_aug=True)
+            aug_gts = augment_images(gt, seed, keep_dims=False, apply_color_aug=False)
+            aug_confs = augment_images(conf, seed, keep_dims=True, apply_color_aug=False)
+            aug_atts = augment_images(att, seed, keep_dims=False, apply_color_aug=False)
+            for i in range(1, 4):
                 aug_img = aug_imgs[i]
                 aug_gt = aug_gts[i]
                 aug_conf = aug_confs[i]

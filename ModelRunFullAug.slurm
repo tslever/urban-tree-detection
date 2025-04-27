@@ -5,10 +5,10 @@
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 #SBATCH --partition=gpu
 #SBATCH --constraint="a100|a40|a6000|v100"
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 #SBATCH --gres=gpu:1
 #SBATCH -J "Full Aug"
 #SBATCH --mail-user=bdj9wf@virginia.edu
