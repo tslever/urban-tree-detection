@@ -10,7 +10,7 @@
 #SBATCH --constraint="a100|a40|a6000|v100"
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:1
-#SBATCH -J "Full Aug"
+#SBATCH -J "INFERENCE only"
 #SBATCH --mail-user=bdj9wf@virginia.edu
 #SBATCH --mail-type=BEGIN
 #SBATCH --mail-type=END
